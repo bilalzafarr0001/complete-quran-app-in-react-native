@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the top of the app's green header so launch → app is seamless. -->
+    <color name="splash_background">#06301F</color>
+</resources>

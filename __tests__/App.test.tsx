@@ -7,7 +7,13 @@ import ReactTestRenderer from 'react-test-renderer';
 import App from '../App';
 
 test('renders correctly', async () => {
-  await ReactTestRenderer.act(() => {
-    ReactTestRenderer.create(<App />);
+  let renderer!: ReactTestRenderer.ReactTestRenderer;
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(<App />);
   });
+  // Saved state loads asynchronously; let it settle before unmounting.
+  await ReactTestRenderer.act(async () => {
+    await Promise.resolve();
+  });
+  ReactTestRenderer.act(() => renderer.unmount());
 });
