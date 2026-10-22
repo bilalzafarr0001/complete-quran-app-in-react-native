@@ -45,6 +45,7 @@ jest.mock('@notifee/react-native', () => {
   const triggers = new Map();
   const api = {
     createChannels: jest.fn(async () => {}),
+    deleteChannel: jest.fn(async () => {}),
     getNotificationSettings: jest.fn(async () => ({
       authorizationStatus: 1,
       android: { alarm: 1 },

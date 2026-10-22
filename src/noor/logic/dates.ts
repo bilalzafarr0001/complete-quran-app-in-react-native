@@ -41,10 +41,3 @@ export function dateKey({ y, m, d }: YMD) {
 export function dayIndex({ y, m, d }: YMD) {
   return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
 }
-
-export function greetingFor(hours: number) {
-  if (hours < 5) return 'Peaceful night';
-  if (hours < 12) return 'Good morning';
-  if (hours < 17) return 'Good afternoon';
-  return 'Good evening';
-}

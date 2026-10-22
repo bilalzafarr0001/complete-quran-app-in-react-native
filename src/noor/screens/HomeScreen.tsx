@@ -1,20 +1,28 @@
-import { ReactNode, useEffect, useRef } from 'react';
-import { Animated, Easing, Share, StyleSheet, Text, View } from 'react-native';
+import { ReactNode, useEffect, useRef, useState } from 'react';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Crescent, SpinningStar, StarField } from '../components/Decor';
+import { Crescent, SpinningStar } from '../components/Decor';
 import { FadeIn } from '../components/FadeIn';
+import { LiveDot } from '../components/LiveDot';
 import { PressableScale } from '../components/PressableScale';
 import { RollingCountdown } from '../components/RollingCountdown';
+import { SkyBand, SkyScene } from '../components/SkyScene';
 import { headerStyles } from '../components/ScreenHeader';
 import { Star8 } from '../components/Star8';
+import { VerseOfMoment } from '../components/VerseOfMoment';
 import { NAMES_OF_ALLAH } from '../data/names';
-import { DAILY_VERSES } from '../data/quran';
 import { getSurah } from '../data/surahs';
 import { usePrayerData } from '../hooks/usePrayerData';
 import { contentColumn, useResponsive } from '../hooks/useResponsive';
-import { dayIndex, formatGregorian, greetingFor } from '../logic/dates';
+import { dayIndex, formatGregorian } from '../logic/dates';
 import { formatHijri } from '../logic/hijri';
-import { formatTime, PRAYER_LABELS, SALAH_KEYS } from '../logic/prayerTimes';
+import {
+  dayPhase,
+  formatTime,
+  PRAYER_LABELS,
+  SALAH_KEYS,
+  sunProgress,
+} from '../logic/prayerTimes';
 import { useNav } from '../navigation/nav';
 import { useStore } from '../store';
 import { onHero, Theme, useTheme } from '../theme';
@@ -111,7 +119,7 @@ export function HomeScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const nav = useNav();
-  const { fs, isTablet } = useResponsive();
+  const { fs, isTablet, compactHeight } = useResponsive();
   const { state } = useStore();
   const {
     place,
@@ -125,11 +133,12 @@ export function HomeScreen() {
     refresh,
   } = usePrayerData();
   const scrollY = useRef(new Animated.Value(0)).current;
+  const [skyBand, setSkyBand] = useState<SkyBand | null>(null);
 
   const idx = dayIndex(date);
-  const verse = DAILY_VERSES[idx % DAILY_VERSES.length];
   const name = NAMES_OF_ALLAH[idx % NAMES_OF_ALLAH.length];
   const lastRead = state.lastRead;
+  const phase = dayPhase(now.hours, today);
   const columns = isTablet ? 6 : 3;
 
   const openQuick = (key: string) => {
@@ -190,7 +199,11 @@ export function HomeScreen() {
           },
         ]}
       >
-        <StarField count={22} height={330} />
+        <SkyScene
+          phase={phase}
+          sun={sunProgress(now.hours, today)}
+          band={skyBand}
+        />
         <Animated.View style={[styles.watermark, starParallax]}>
           <SpinningStar size={240} color="rgba(241,207,116,0.16)" />
         </Animated.View>
@@ -199,21 +212,23 @@ export function HomeScreen() {
           style={[contentColumn, isTablet && styles.tabletInset, heroParallax]}
         >
           <View style={styles.topRow}>
-            <View style={styles.flex}>
-              <Text
-                maxFontSizeMultiplier={1.3}
-                style={[styles.salam, { fontSize: fs(20) }]}
-              >
-                السَّلَامُ عَلَيْكُمْ
-              </Text>
+            <View style={styles.dates}>
+              <View style={styles.dateChip}>
+                <Crescent size={14} color={onHero.gold} />
+                <Text
+                  maxFontSizeMultiplier={1.3}
+                  numberOfLines={1}
+                  style={styles.dateText}
+                >
+                  {formatHijri(hijri)}
+                </Text>
+              </View>
               <Text
                 maxFontSizeMultiplier={1.3}
                 numberOfLines={1}
-                adjustsFontSizeToFit
-                style={[styles.greeting, { fontSize: fs(25) }]}
+                style={styles.gregorian}
               >
-                {greetingFor(now.hours)}
-                {state.name ? `, ${state.name}` : ''}
+                {formatGregorian(date)}
               </Text>
             </View>
             <PressableScale
@@ -225,19 +240,20 @@ export function HomeScreen() {
             </PressableScale>
           </View>
 
-          <View style={styles.dateRow}>
-            <View style={styles.dateChip}>
-              <Crescent size={14} color={onHero.gold} />
-              <Text maxFontSizeMultiplier={1.3} style={styles.dateText}>
-                {formatHijri(hijri)}
-              </Text>
-            </View>
-            <Text maxFontSizeMultiplier={1.3} style={styles.gregorian}>
-              {formatGregorian(date)}
-            </Text>
-          </View>
+          {/* Open sky above the prayer card, where the moon, sun and birds are. */}
+          <View
+            style={compactHeight ? styles.skyCompact : styles.sky}
+            onLayout={e => {
+              const { y, height } = e.nativeEvent.layout;
+              // The column starts at the hero's top padding.
+              const top = insets.top + 12 + y;
+              setSkyBand(b =>
+                b && b.top === top && b.height === height ? b : { top, height },
+              );
+            }}
+          />
 
-          {/* Next prayer glass card */}
+          {/* Prayer card: the prayer whose time it is now, then the next one */}
           <FadeIn delay={120}>
             <PressableScale
               style={styles.glass}
@@ -245,75 +261,108 @@ export function HomeScreen() {
               scaleTo={0.98}
             >
               <View style={styles.glassTop}>
-                <View style={styles.shrink}>
-                  <Text maxFontSizeMultiplier={1.3} style={styles.glassLabel}>
-                    NEXT PRAYER · {place.name.toUpperCase()}
-                  </Text>
+                <View style={styles.nowCol}>
+                  <View style={styles.nowLabelRow}>
+                    <LiveDot color={onHero.gold} />
+                    <Text
+                      maxFontSizeMultiplier={1.3}
+                      numberOfLines={1}
+                      style={[styles.glassLabel, styles.shrink]}
+                    >
+                      NOW · {place.name.toUpperCase()}
+                    </Text>
+                  </View>
                   {/* Re-keyed so the name animates in when the prayer changes. */}
-                  <FadeIn key={status.next} distance={10}>
-                    <View style={styles.nextRow}>
+                  <FadeIn key={status.current} distance={10}>
+                    <View style={styles.nowRow}>
                       <Text
                         maxFontSizeMultiplier={1.3}
-                        style={[styles.nextName, { fontSize: fs(34) }]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        style={[styles.nowName, { fontSize: fs(34) }]}
                       >
-                        {PRAYER_LABELS[status.next].en}
+                        {status.current === 'sunrise'
+                          ? 'Duha'
+                          : PRAYER_LABELS[status.current].en}
                       </Text>
                       <Text
                         maxFontSizeMultiplier={1.3}
-                        style={[styles.nextArabic, { fontSize: fs(20) }]}
+                        style={[styles.nowArabic, { fontSize: fs(19) }]}
                       >
-                        {PRAYER_LABELS[status.next].ar}
+                        {status.current === 'sunrise'
+                          ? 'الضحى'
+                          : PRAYER_LABELS[status.current].ar}
                       </Text>
                     </View>
                   </FadeIn>
-                  <Text maxFontSizeMultiplier={1.3} style={styles.nextTime}>
-                    {formatTime(status.nextTime)}
+                  <Text
+                    maxFontSizeMultiplier={1.3}
+                    numberOfLines={2}
+                    style={styles.nowNote}
+                  >
+                    {status.current === 'fajr'
+                      ? `Ends at sunrise · ${formatTime(today.sunrise)}`
+                      : status.current === 'sunrise'
+                      ? `Fajr ended at ${formatTime(today.sunrise)}`
+                      : `Started ${formatTime(status.currentTime)}`}
                   </Text>
                 </View>
+
                 <Pulse active={status.remaining < 0.25}>
-                  <View style={styles.countdown}>
-                    <Text
-                      maxFontSizeMultiplier={1.3}
-                      style={styles.countdownLabel}
-                    >
-                      starts in
+                  <View style={styles.nextBox}>
+                    <Text maxFontSizeMultiplier={1.2} style={styles.nextLabel}>
+                      NEXT
                     </Text>
+                    <FadeIn key={status.next} distance={6}>
+                      <Text
+                        maxFontSizeMultiplier={1.2}
+                        numberOfLines={1}
+                        style={[styles.nextName, { fontSize: fs(17) }]}
+                      >
+                        {PRAYER_LABELS[status.next].en}
+                      </Text>
+                    </FadeIn>
                     <RollingCountdown
                       target={nextAt}
-                      fontSize={fs(20)}
+                      fontSize={fs(19)}
                       style={styles.countdownValue}
                       onElapsed={refresh}
                     />
+                    <Text maxFontSizeMultiplier={1.2} style={styles.nextAt}>
+                      at {formatTime(status.nextTime)}
+                    </Text>
                   </View>
                 </Pulse>
               </View>
               <GlideBar progress={status.progress} fill={theme.gold3} />
               <View style={styles.miniRow}>
                 {SALAH_KEYS.map(k => {
-                  const active = k === status.next;
+                  const isNow = k === status.current;
+                  const isNext = k === status.next;
+                  const done = !isNow && !isNext && today[k] <= now.hours;
                   return (
                     <View
                       key={k}
-                      style={[styles.mini, active && styles.miniActive]}
+                      style={[
+                        styles.mini,
+                        isNow && styles.miniNow,
+                        isNext && styles.miniNext,
+                        done && styles.miniDone,
+                      ]}
                     >
                       <Text
                         maxFontSizeMultiplier={1.2}
                         numberOfLines={1}
-                        style={[
-                          styles.miniName,
-                          active && styles.miniNameActive,
-                        ]}
+                        style={[styles.miniName, isNow && styles.miniGold]}
                       >
                         {PRAYER_LABELS[k].en}
                       </Text>
                       <Text
                         maxFontSizeMultiplier={1.2}
-                        style={[
-                          styles.miniTime,
-                          active && styles.miniNameActive,
-                        ]}
+                        style={[styles.miniTime, isNow && styles.miniGold]}
                       >
-                        {formatTime(today[k], false)}
+                        {/* After Isha the next Fajr is tomorrow's. */}
+                        {formatTime(isNext ? status.nextTime : today[k], false)}
                       </Text>
                     </View>
                   );
@@ -433,60 +482,9 @@ export function HomeScreen() {
           </FadeIn>
         ) : null}
 
-        {/* ---------- Verse of the day ---------- */}
+        {/* ---------- Verse of the moment ---------- */}
         <FadeIn delay={640}>
-          <Text style={[styles.section, { color: theme.text }]}>
-            Verse of the Day
-          </Text>
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: theme.surface, boxShadow: theme.cardShadow },
-            ]}
-          >
-            <View style={[styles.cardBand, { backgroundImage: theme.gold3 }]} />
-            <Star8
-              size={34}
-              color={theme.gold}
-              outline
-              style={styles.cardStar}
-            />
-            <Text
-              style={[
-                styles.verseArabic,
-                {
-                  color: theme.arabic,
-                  fontSize: state.arabicSize - 2,
-                  lineHeight: (state.arabicSize - 2) * 1.9,
-                },
-              ]}
-            >
-              {verse.ar}
-            </Text>
-            <Text style={[styles.verseEn, { color: theme.text }]}>
-              “{verse.en}”
-            </Text>
-            <View style={styles.verseFooter}>
-              <Text style={[styles.verseRef, { color: theme.primary }]}>
-                {verse.ref}
-              </Text>
-              <PressableScale
-                style={[
-                  styles.shareBtn,
-                  { backgroundColor: theme.primarySoft },
-                ]}
-                onPress={() =>
-                  Share.share({
-                    message: `${verse.ar}\n\n“${verse.en}”\n— ${verse.ref}`,
-                  })
-                }
-              >
-                <Text style={[styles.shareText, { color: theme.primary }]}>
-                  Share
-                </Text>
-              </PressableScale>
-            </View>
-          </View>
+          <VerseOfMoment />
         </FadeIn>
 
         {/* ---------- Name of the day ---------- */}
@@ -540,15 +538,9 @@ const styles = StyleSheet.create({
   },
   watermark: { position: 'absolute', right: -70, top: -40 },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  salam: { color: onHero.gold, textAlign: 'left' },
-  greeting: { color: onHero.text, fontWeight: '800', marginTop: 2 },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    marginTop: 14,
-    gap: 10,
-  },
+  dates: { flex: 1, alignItems: 'flex-start', gap: 6 },
+  sky: { height: 52 },
+  skyCompact: { height: 34 },
   dateChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -561,7 +553,14 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   dateText: { color: onHero.text, fontSize: 13, fontWeight: '700' },
-  gregorian: { color: onHero.soft, fontSize: 13 },
+  gregorian: {
+    color: onHero.soft,
+    fontSize: 13,
+    marginLeft: 2,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
+  },
   glass: {
     marginTop: 18,
     borderRadius: 26,
@@ -572,8 +571,6 @@ const styles = StyleSheet.create({
   },
   glassTop: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
     gap: 12,
   },
@@ -583,30 +580,42 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1,
   },
-  nextRow: {
+  nowCol: { flex: 1, minWidth: 0 },
+  nowLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  nowRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'baseline',
     columnGap: 10,
     marginTop: 4,
   },
-  nextName: { color: onHero.text, fontWeight: '900' },
-  nextArabic: { color: onHero.gold },
-  nextTime: {
+  nowName: { color: onHero.text, fontWeight: '900', letterSpacing: -0.5 },
+  nowArabic: { color: onHero.gold },
+  nowNote: {
     color: onHero.soft,
-    fontSize: 15,
+    fontSize: 13.5,
     fontWeight: '600',
     marginTop: 2,
   },
-  countdown: {
+  nextBox: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.18)',
-    borderRadius: 16,
+    minWidth: 104,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(241,207,116,0.28)',
+    borderRadius: 18,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 9,
   },
-  countdownLabel: { color: onHero.soft, fontSize: 11, fontWeight: '700' },
-  countdownValue: { color: onHero.gold, fontWeight: '800', marginTop: 2 },
+  nextLabel: {
+    color: onHero.gold,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.6,
+  },
+  nextName: { color: onHero.text, fontWeight: '800', marginTop: 2 },
+  countdownValue: { color: onHero.gold, fontWeight: '800', marginTop: 1 },
+  nextAt: { color: onHero.soft, fontSize: 11.5, fontWeight: '600' },
   progressTrack: {
     height: 6,
     borderRadius: 3,
@@ -626,9 +635,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     borderRadius: 12,
   },
-  miniActive: { backgroundColor: 'rgba(241,207,116,0.18)' },
+  miniNow: { backgroundColor: 'rgba(241,207,116,0.2)' },
+  miniNext: {
+    borderWidth: 1,
+    borderColor: 'rgba(241,207,116,0.45)',
+    paddingVertical: 5,
+    paddingHorizontal: 4,
+  },
+  miniDone: { opacity: 0.5 },
   miniName: { color: onHero.soft, fontSize: 11, fontWeight: '700' },
-  miniNameActive: { color: onHero.gold },
+  miniGold: { color: onHero.gold },
   miniTime: {
     color: onHero.text,
     fontSize: 13,
@@ -697,34 +713,6 @@ const styles = StyleSheet.create({
   },
   continueSub: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 2 },
   continueArabic: { color: onHero.gold, marginLeft: 8, maxWidth: '35%' },
-  card: {
-    marginHorizontal: 20,
-    marginTop: 6,
-    borderRadius: 26,
-    padding: 20,
-    paddingTop: 28,
-    overflow: 'hidden',
-  },
-  cardBand: { position: 'absolute', top: 0, left: 0, right: 0, height: 5 },
-  cardStar: { position: 'absolute', top: 14, left: 16, opacity: 0.6 },
-  verseArabic: { textAlign: 'center', writingDirection: 'rtl', marginTop: 8 },
-  verseEn: {
-    fontSize: 15,
-    lineHeight: 23,
-    textAlign: 'center',
-    marginTop: 12,
-    fontStyle: 'italic',
-  },
-  verseFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 18,
-    gap: 10,
-  },
-  verseRef: { flexShrink: 1, fontSize: 13, fontWeight: '800' },
-  shareBtn: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 },
-  shareText: { fontSize: 13, fontWeight: '800' },
   nameCard: {
     marginHorizontal: 20,
     marginTop: 6,

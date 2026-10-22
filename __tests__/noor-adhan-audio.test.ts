@@ -1,4 +1,5 @@
 import notifee from '@notifee/react-native';
+import { NativeModules, Platform } from 'react-native';
 import TrackPlayer from 'react-native-track-player';
 import type { Place } from '../src/noor/data/places';
 import {
@@ -7,6 +8,7 @@ import {
   localToUtcMs,
   planAlerts,
   scheduleAlerts,
+  sendTestAdhan,
 } from '../src/noor/services/adhan';
 import {
   ayahAudioUrl,
@@ -256,5 +258,88 @@ describe('adhan schedule', () => {
     expect(
       [...triggers.values()].every(t => t.trigger.alarmManager.type === 3),
     ).toBe(true);
+  });
+});
+
+describe('adhan on Android (native player)', () => {
+  const NOW = Date.UTC(2026, 9, 19, 5, 0);
+  const native = {
+    schedule: jest.fn(async (alarms: unknown[]) => alarms.length),
+    cancelAll: jest.fn(async () => {}),
+    test: jest.fn(async () => {}),
+    stop: jest.fn(async () => {}),
+  };
+  const triggers = (notifee as unknown as { __triggers: Map<string, unknown> })
+    .__triggers;
+  const os = Platform.OS;
+
+  beforeAll(() => {
+    Object.defineProperty(Platform, 'OS', { get: () => 'android' });
+    NativeModules.NoorAdhan = native;
+  });
+  afterAll(() => {
+    Object.defineProperty(Platform, 'OS', { get: () => os });
+    delete NativeModules.NoorAdhan;
+  });
+  beforeEach(() => {
+    triggers.clear();
+    jest.clearAllMocks();
+  });
+
+  test('full adhans go to the native player, other alerts to notifee', async () => {
+    const count = await scheduleAlerts({
+      place: LAHORE,
+      method: 'karachi',
+      madhab: 'hanafi',
+      settings: {
+        ...ON,
+        modes: { ...ON.modes, isha: 'beep' },
+        reminderMinutes: 10,
+      },
+      now: NOW,
+      days: 1,
+    });
+    // Today after 10:00: Dhuhr, Asr, Maghrib adhans + Isha beep + 4 reminders.
+    expect(count).toBe(8);
+    const alarms = native.schedule.mock.calls[0][0] as {
+      id: string;
+      fajr: boolean;
+      title: string;
+    }[];
+    expect(alarms.map(a => a.id)).toEqual([
+      'adhan-2026-10-19-dhuhr',
+      'adhan-2026-10-19-asr',
+      'adhan-2026-10-19-maghrib',
+    ]);
+    expect(alarms[1].title).toBe('Asr · العصر');
+    expect(alarms.every(a => !a.fajr)).toBe(true);
+    expect([...triggers.keys()].some(id => id.startsWith('adhan-'))).toBe(
+      true, // the Isha beep
+    );
+    expect(triggers.has('adhan-2026-10-19-asr')).toBe(false);
+    expect(triggers.size).toBe(5);
+    expect(notifee.deleteChannel).toHaveBeenCalledWith(CHANNELS.adhan);
+  });
+
+  test('turning alerts off clears the native adhans too', async () => {
+    await scheduleAlerts({
+      place: LAHORE,
+      method: 'karachi',
+      madhab: 'hanafi',
+      settings: { ...ON, enabled: false },
+      now: NOW,
+    });
+    expect(native.schedule).toHaveBeenCalledWith([]);
+  });
+
+  test('test adhan uses the native player', async () => {
+    await sendTestAdhan(LAHORE, true, 5);
+    expect(native.test).toHaveBeenCalledWith(
+      true,
+      5000,
+      'Test · Fajr adhan',
+      'This is how the adhan will sound at prayer time.',
+    );
+    expect(triggers.size).toBe(0);
   });
 });

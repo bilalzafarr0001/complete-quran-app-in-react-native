@@ -188,7 +188,13 @@ export function addDays({ y, m, d }: YMD, days: number): YMD {
 export type LocalNow = YMD & { hours: number; weekday: number };
 
 export type PrayerStatus = {
+  /**
+   * The prayer whose time it is now. Between sunrise and Dhuhr no prayer is
+   * due (Fajr has ended), so this is 'sunrise' then.
+   */
   current: PrayerKey;
+  /** When `current` began (hours; negative = yesterday). */
+  currentTime: number;
   next: PrayerKey;
   /** Hours from now until the next prayer. */
   remaining: number;
@@ -227,15 +233,37 @@ export function prayerStatus(
     current = 'isha';
     prevTime = yesterday.isha - 24;
   }
+  if (current === 'fajr' && h >= today.sunrise) {
+    current = 'sunrise';
+    prevTime = today.sunrise;
+  }
 
   const span = nextTime - prevTime;
   return {
     current,
+    currentTime: prevTime,
     next,
     nextTime,
     remaining: nextTime - h,
     progress: span > 0 ? Math.min(1, Math.max(0, (h - prevTime) / span)) : 0,
   };
+}
+
+/** The look of the sky: dawn (Fajr), day, afternoon (Asr), dusk (Maghrib), night (Isha). */
+export type DayPhase = 'dawn' | 'day' | 'afternoon' | 'dusk' | 'night';
+
+export function dayPhase(hours: number, t: PrayerTimes): DayPhase {
+  if (hours >= t.fajr && hours < t.sunrise) return 'dawn';
+  if (hours >= t.sunrise && hours < t.asr) return 'day';
+  if (hours >= t.asr && hours < t.maghrib) return 'afternoon';
+  if (hours >= t.maghrib && hours < t.isha) return 'dusk';
+  return 'night';
+}
+
+/** How far the sun is across the sky: 0 at sunrise, 1 at Maghrib. */
+export function sunProgress(hours: number, t: PrayerTimes): number {
+  const f = (hours - t.sunrise) / (t.maghrib - t.sunrise);
+  return Math.min(1, Math.max(0, f));
 }
 
 // ---------- formatting ----------

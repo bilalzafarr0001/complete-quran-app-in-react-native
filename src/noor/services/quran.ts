@@ -7,7 +7,7 @@ import { keysWithPrefix, readJson, removeKeys, writeJson } from './storage';
 export type FullAyah = { ar: string; en?: string; ur?: string };
 export type SurahSource = 'cache' | 'online' | 'bundled';
 
-const EDITIONS = {
+export const EDITIONS = {
   ar: 'quran-simple-enhanced',
   en: 'en.sahih', // Saheeh International
   ur: 'ur.jalandhry', // Fateh Muhammad Jalandhry

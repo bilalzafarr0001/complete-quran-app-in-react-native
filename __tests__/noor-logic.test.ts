@@ -11,7 +11,9 @@ import {
   calculatePrayerTimes,
   formatCountdown,
   formatTime,
+  dayPhase,
   prayerStatus,
+  sunProgress,
   PRAYER_KEYS,
 } from '../src/noor/logic/prayerTimes';
 import { qiblaBearing } from '../src/noor/logic/qibla';
@@ -201,6 +203,54 @@ describe('prayer times', () => {
     expect(s.current).toBe('isha');
     expect(s.next).toBe('fajr');
     expect(s.remaining).toBeGreaterThan(0);
+  });
+
+  test('current prayer: Fajr until sunrise, then no prayer due until Dhuhr', () => {
+    const t = calculatePrayerTimes(
+      { y: 2026, m: 10, d: 18 },
+      LAHORE,
+      5,
+      'karachi',
+      'hanafi',
+    );
+    const at = (hours: number) =>
+      prayerStatus({ y: 2026, m: 10, d: 18, weekday: 0, hours }, t, t, t);
+
+    const fajr = at(t.fajr + 0.1);
+    expect([fajr.current, fajr.next]).toEqual(['fajr', 'dhuhr']);
+    expect(fajr.currentTime).toBe(t.fajr);
+
+    const duha = at(t.sunrise + 0.5);
+    expect([duha.current, duha.next]).toEqual(['sunrise', 'dhuhr']);
+    expect(duha.currentTime).toBe(t.sunrise);
+
+    const asr = at(t.asr + 0.2);
+    expect([asr.current, asr.next]).toEqual(['asr', 'maghrib']);
+    expect(asr.currentTime).toBe(t.asr);
+
+    // After midnight it's still Isha (from yesterday) until Fajr.
+    const late = at(1);
+    expect([late.current, late.next]).toEqual(['isha', 'fajr']);
+    expect(late.currentTime).toBeLessThan(0);
+  });
+
+  test('sky phase and sun position follow the prayer times', () => {
+    const t = calculatePrayerTimes(
+      { y: 2026, m: 10, d: 18 },
+      LAHORE,
+      5,
+      'karachi',
+      'hanafi',
+    );
+    expect(dayPhase(t.fajr + 0.1, t)).toBe('dawn');
+    expect(dayPhase(t.dhuhr, t)).toBe('day');
+    expect(dayPhase(t.asr + 0.1, t)).toBe('afternoon');
+    expect(dayPhase(t.maghrib + 0.1, t)).toBe('dusk');
+    expect(dayPhase(t.isha + 0.1, t)).toBe('night');
+    expect(dayPhase(2, t)).toBe('night');
+    expect(sunProgress(t.sunrise, t)).toBe(0);
+    expect(sunProgress((t.sunrise + t.maghrib) / 2, t)).toBeCloseTo(0.5);
+    expect(sunProgress(t.isha, t)).toBe(1);
   });
 
   test('formatting', () => {

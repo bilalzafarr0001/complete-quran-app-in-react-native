@@ -1,7 +1,9 @@
 import React from 'react';
+import { AppState } from 'react-native';
 import ReactTestRenderer, { ReactTestInstance } from 'react-test-renderer';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Shell } from '../src/noor/navigation/Shell';
+import * as verses from '../src/noor/services/verseOfMoment';
 import { StoreProvider } from '../src/noor/store';
 
 jest.useFakeTimers();
@@ -57,8 +59,47 @@ describe('Noor screens render without crashing', () => {
     ReactTestRenderer.act(() => renderer.unmount());
   });
 
-  test('home shows the next prayer card', () => {
-    expect(textContent(renderer.root)).toContain('NEXT PRAYER');
+  test('home shows the current prayer and the next one', () => {
+    const text = textContent(renderer.root);
+    expect(text).toContain('NOW · ');
+    expect(text).toContain('NEXT');
+    expect(text).toMatch(/Started|Ends at sunrise|Fajr ended/);
+    expect(text).not.toMatch(/Good (morning|afternoon|evening)|Peaceful night/);
+  });
+
+  test('home shows a new verse of the moment each time the app is reopened', async () => {
+    const text = () => textContent(renderer.root);
+    expect(text()).toContain('Verse of the Moment');
+    expect(text()).toContain('ENGLISH');
+    expect(
+      renderer.root.findAll(n => n.props.accessibilityLabel === 'New verse'),
+    ).toHaveLength(0);
+
+    jest.spyOn(verses, 'nextVerse').mockResolvedValue({
+      surah: 94,
+      ayah: 5,
+      ar: 'فَإِنَّ مَعَ الْعُسْرِ يُسْرًا',
+      en: 'For indeed, with hardship [will be] ease.',
+      ur: 'ہاں ہاں مشکل کے ساتھ آسانی بھی ہے',
+    });
+    const reopen = async () => {
+      await ReactTestRenderer.act(async () => {
+        const handlers = (AppState.addEventListener as jest.Mock).mock.calls
+          .filter(([type]) => type === 'change')
+          .map(([, handler]) => handler);
+        handlers.forEach(h => h('background'));
+        handlers.forEach(h => h('active'));
+      });
+      // Let the old verse slide out and the new one in.
+      await ReactTestRenderer.act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+    };
+    // The first reopen shows the verse fetched ahead; the second, the new one.
+    await reopen();
+    await reopen();
+    expect(text()).toContain('For indeed, with hardship [will be] ease.');
+    expect(text()).toContain('ہاں ہاں مشکل کے ساتھ آسانی بھی ہے');
   });
 
   test.each(['Quran', 'Prayer', 'Tasbeeh', 'More', 'Home'])(

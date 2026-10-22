@@ -11,7 +11,7 @@ import notifee, {
   TimestampTrigger,
   TriggerType,
 } from '@notifee/react-native';
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import type { Place } from '../data/places';
 import { dateKey } from '../logic/dates';
 import {
@@ -44,27 +44,69 @@ export const SCHEDULE_DAYS = 7;
 /** iOS keeps at most 64 pending notifications per app. */
 const IOS_LIMIT = 60;
 
+type NativeAdhanAlarm = {
+  id: string;
+  at: number;
+  fajr: boolean;
+  title: string;
+  body: string;
+};
+
+/**
+ * Android's native adhan player (android/app/src/main/java/com/myapp/adhan).
+ * It plays the full adhan on the alarm volume from a foreground service, so
+ * it's heard on silent/vibrate and isn't cut short like long notification
+ * sounds are on many Android brands. Undefined on iOS.
+ */
+type NativeAdhan = {
+  schedule(alarms: NativeAdhanAlarm[]): Promise<number>;
+  cancelAll(): Promise<void>;
+  test(
+    fajr: boolean,
+    delayMs: number,
+    title: string,
+    body: string,
+  ): Promise<void>;
+  stop(): Promise<void>;
+};
+
+function nativeAdhan(): NativeAdhan | undefined {
+  return Platform.OS === 'android' ? NativeModules.NoorAdhan : undefined;
+}
+
+/** Only used if the native player is missing (it has its own channels). */
+const ADHAN_CHANNELS = [
+  {
+    id: CHANNELS.adhan,
+    name: 'Adhan',
+    description: 'Full adhan for Dhuhr, Asr, Maghrib and Isha',
+    sound: 'adhan', // res/raw/adhan.mp3
+    importance: AndroidImportance.HIGH,
+    visibility: AndroidVisibility.PUBLIC,
+    vibration: true,
+  },
+  {
+    id: CHANNELS.fajr,
+    name: 'Fajr adhan',
+    description: 'Fajr adhan, with “as-salatu khayrun min an-nawm”',
+    sound: 'adhan_fajr', // res/raw/adhan_fajr.mp3
+    importance: AndroidImportance.HIGH,
+    visibility: AndroidVisibility.PUBLIC,
+    vibration: true,
+  },
+];
+
 export async function ensureChannels() {
   if (Platform.OS !== 'android') return;
+  const native = !!nativeAdhan();
+  if (native) {
+    // Remove the old adhan sound channels from earlier versions.
+    await Promise.all(
+      [CHANNELS.adhan, CHANNELS.fajr].map(id => notifee.deleteChannel(id)),
+    );
+  }
   await notifee.createChannels([
-    {
-      id: CHANNELS.adhan,
-      name: 'Adhan',
-      description: 'Full adhan for Dhuhr, Asr, Maghrib and Isha',
-      sound: 'adhan', // res/raw/adhan.mp3
-      importance: AndroidImportance.HIGH,
-      visibility: AndroidVisibility.PUBLIC,
-      vibration: true,
-    },
-    {
-      id: CHANNELS.fajr,
-      name: 'Fajr adhan',
-      description: 'Fajr adhan, with “as-salatu khayrun min an-nawm”',
-      sound: 'adhan_fajr', // res/raw/adhan_fajr.mp3
-      importance: AndroidImportance.HIGH,
-      visibility: AndroidVisibility.PUBLIC,
-      vibration: true,
-    },
+    ...(native ? [] : ADHAN_CHANNELS),
     {
       id: CHANNELS.beep,
       name: 'Prayer time alerts',
@@ -273,10 +315,29 @@ export async function scheduleAlerts(input: ScheduleInput): Promise<number> {
   if (ours.length) await notifee.cancelTriggerNotifications(ours);
 
   const plan = planAlerts(input);
-  if (!plan.length) return 0;
+  const native = nativeAdhan();
+  // On Android the full adhan goes to the native player; the rest to notifee.
+  const toNative = native ? plan.filter(a => a.kind === 'adhan') : [];
+  const toNotifee = native ? plan.filter(a => a.kind !== 'adhan') : plan;
+
+  if (native) {
+    await native.schedule(
+      toNative.map(a => {
+        const n = buildNotification(a, input.place, 0);
+        return {
+          id: a.id,
+          at: a.at,
+          fajr: a.prayer === 'fajr',
+          title: n.title ?? '',
+          body: n.body ?? '',
+        };
+      }),
+    );
+  }
+  if (!toNotifee.length) return plan.length;
   await ensureChannels();
   const { exactAlarms } = await getAdhanPermission();
-  for (const a of plan) {
+  for (const a of toNotifee) {
     await notifee.createTriggerNotification(
       buildNotification(a, input.place, input.settings.reminderMinutes),
       triggerAt(a.at, exactAlarms),
@@ -286,6 +347,7 @@ export async function scheduleAlerts(input: ScheduleInput): Promise<number> {
 }
 
 export async function cancelAllAlerts() {
+  await nativeAdhan()?.cancelAll();
   const ids = await notifee.getTriggerNotificationIds();
   const ours = ids.filter(id => PREFIXES.some(p => id.startsWith(p)));
   if (ours.length) await notifee.cancelTriggerNotifications(ours);
@@ -309,6 +371,11 @@ export async function sendTestAdhan(place: Place, fajr = false, seconds = 5) {
   );
   n.title = fajr ? 'Test · Fajr adhan' : 'Test · Adhan';
   n.body = 'This is how the adhan will sound at prayer time.';
+  const native = nativeAdhan();
+  if (native) {
+    await native.test(fajr, seconds * 1000, n.title, n.body);
+    return;
+  }
   await notifee.createTriggerNotification(n, triggerAt(at, exactAlarms));
 }
 
