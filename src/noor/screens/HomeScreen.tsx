@@ -5,6 +5,7 @@ import { Crescent, SpinningStar } from '../components/Decor';
 import { FadeIn } from '../components/FadeIn';
 import { LiveDot } from '../components/LiveDot';
 import { PressableScale } from '../components/PressableScale';
+import { RamadanCard } from '../components/RamadanCard';
 import { RollingCountdown } from '../components/RollingCountdown';
 import { SkyBand, SkyScene } from '../components/SkyScene';
 import { headerStyles } from '../components/ScreenHeader';
@@ -126,10 +127,13 @@ export function HomeScreen() {
     isDefaultPlace,
     now,
     today,
+    tomorrow,
     date,
     hijri,
+    hijriAdjust,
     status,
     nextAt,
+    nowMs,
     refresh,
   } = usePrayerData();
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -398,6 +402,19 @@ export function HomeScreen() {
             </PressableScale>
           </FadeIn>
         ) : null}
+
+        {/* ---------- Ramadan (Sehri / Iftar, or countdown to it) ---------- */}
+        <FadeIn delay={180}>
+          <RamadanCard
+            date={date}
+            hijriAdjust={hijriAdjust}
+            hours={now.hours}
+            nowMs={nowMs}
+            today={today}
+            tomorrow={tomorrow}
+            onElapsed={refresh}
+          />
+        </FadeIn>
 
         {/* ---------- Quick access ---------- */}
         <FadeIn delay={200}>

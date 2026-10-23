@@ -20,6 +20,7 @@ import { usePlace, usePrayerData } from '../hooks/usePrayerData';
 import { contentColumn } from '../hooks/useResponsive';
 import { dateKey } from '../logic/dates';
 import { formatHijri } from '../logic/hijri';
+import { SEHRI_OPTIONS } from '../logic/ramadan';
 import { METHODS, MethodId, PRAYER_LABELS } from '../logic/prayerTimes';
 import { formatOffset, offsetAt } from '../logic/timezone';
 import { useNav } from '../navigation/nav';
@@ -380,6 +381,22 @@ function AdhanSettings() {
               { value: 15, label: '15 min' },
               { value: 30, label: '30 min' },
             ]}
+          />
+        </View>
+      ) : null}
+
+      {on ? (
+        <View style={styles.inline}>
+          <Text
+            maxFontSizeMultiplier={1.3}
+            style={[styles.inlineLabel, { color: theme.muted }]}
+          >
+            SEHRI REMINDER (RAMADAN)
+          </Text>
+          <Segmented<NotifySettings['sehriMinutes']>
+            value={c.settings.sehriMinutes}
+            onChange={v => c.updateNotifications({ sehriMinutes: v })}
+            options={SEHRI_OPTIONS}
           />
         </View>
       ) : null}

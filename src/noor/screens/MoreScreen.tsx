@@ -16,6 +16,13 @@ const FEATURES: {
   icon: string;
 }[] = [
   {
+    route: { name: 'ramadan' },
+    title: 'Ramadan',
+    arabic: 'رمضان',
+    desc: 'Sehri & Iftar timetable',
+    icon: '🌙',
+  },
+  {
     route: { name: 'names' },
     title: '99 Names',
     arabic: 'الأسماء الحسنى',

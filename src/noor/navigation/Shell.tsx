@@ -20,6 +20,7 @@ import { DuasScreen } from '../screens/DuasScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { MoreScreen } from '../screens/MoreScreen';
 import { NamesScreen } from '../screens/NamesScreen';
+import { RamadanScreen } from '../screens/RamadanScreen';
 import { PrayerScreen } from '../screens/PrayerScreen';
 import { QiblaScreen } from '../screens/QiblaScreen';
 import { QuranScreen } from '../screens/QuranScreen';
@@ -58,6 +59,8 @@ function renderRoute(route: Route) {
       return <NamesScreen />;
     case 'duas':
       return <DuasScreen />;
+    case 'ramadan':
+      return <RamadanScreen />;
     case 'qibla':
       return <QiblaScreen />;
     case 'settings':

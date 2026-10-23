@@ -133,6 +133,16 @@ describe('Noor screens render without crashing', () => {
     }
   });
 
+  test('home shows Ramadan and opens the Sehri & Iftar timetable', async () => {
+    expect(textContent(renderer.root)).toMatch(/Ramadan 14\d\d/);
+    await pressByLabel(renderer.root, 'Ramadan timetable');
+    const text = textContent(renderer.root);
+    expect(text).toContain('SEHRI ENDS');
+    expect(text).toContain('IFTAR');
+    expect(text).toContain('Sehri reminder');
+    expect(text).toContain('27th night begins at Iftar');
+  });
+
   test('duas can be filtered to Ramadan and Janazah', async () => {
     await pressByLabel(renderer.root, 'More');
     const pressText = async (label: string) => {

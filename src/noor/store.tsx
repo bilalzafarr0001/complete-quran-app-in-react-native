@@ -23,6 +23,8 @@ export type NotifySettings = {
   modes: Record<SalahKey, AlertMode>;
   /** Heads-up this many minutes before each prayer (0 = off). */
   reminderMinutes: 0 | 10 | 15 | 30;
+  /** Ramadan: remind this many minutes before Sehri ends (0 = off). */
+  sehriMinutes: 0 | 30 | 45 | 60;
   /** Alert at sunrise (end of Fajr time). */
   sunrise: boolean;
 };
@@ -83,6 +85,7 @@ const INITIAL: AppState = {
       isha: 'adhan',
     },
     reminderMinutes: 0,
+    sehriMinutes: 0,
     sunrise: false,
   },
   reciterId: 'ar.alafasy',

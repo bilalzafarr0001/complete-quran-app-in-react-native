@@ -6,6 +6,7 @@ export type Route =
   | { name: 'surah'; surah: number; ayah?: number }
   | { name: 'names' }
   | { name: 'duas' }
+  | { name: 'ramadan' }
   | { name: 'qibla' }
   | { name: 'settings' };
 

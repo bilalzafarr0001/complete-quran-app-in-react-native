@@ -71,6 +71,8 @@ export function usePrayerData(intervalMs = 15000) {
     ...days,
     status,
     nextAt,
+    /** The current time (ms) these values were computed for. */
+    nowMs,
     refresh,
   };
 }

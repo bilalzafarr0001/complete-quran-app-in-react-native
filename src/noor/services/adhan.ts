@@ -24,6 +24,7 @@ import {
   SALAH_KEYS,
   YMD,
 } from '../logic/prayerTimes';
+import { isRamadan } from '../logic/ramadan';
 import { offsetOn, placeNow } from '../logic/timezone';
 import type { NotifySettings, SalahKey } from '../store';
 
@@ -38,7 +39,7 @@ export const CHANNELS = {
   reminder: 'noor-reminder-v1',
 } as const;
 
-const PREFIXES = ['adhan-', 'remind-', 'sunrise-'];
+const PREFIXES = ['adhan-', 'remind-', 'sunrise-', 'sehri-'];
 /** Days of alerts kept scheduled ahead (refreshed every time the app opens). */
 export const SCHEDULE_DAYS = 7;
 /** iOS keeps at most 64 pending notifications per app. */
@@ -158,12 +159,14 @@ export const openNotificationSettings = () =>
 
 export type PlannedAlert = {
   id: string;
-  kind: 'adhan' | 'beep' | 'reminder' | 'sunrise';
+  kind: 'adhan' | 'beep' | 'reminder' | 'sunrise' | 'sehri';
   prayer: SalahKey | 'sunrise';
   /** When to fire (UTC ms). */
   at: number;
   /** Local prayer time (hours) shown in the text. */
   hours: number;
+  /** Sehri reminders: minutes before Fajr. */
+  minutes?: number;
 };
 
 export type ScheduleInput = {
@@ -173,6 +176,8 @@ export type ScheduleInput = {
   settings: NotifySettings;
   days?: number;
   now?: number;
+  /** Hijri adjustment, to know which days are in Ramadan. */
+  hijriAdjust?: number;
 };
 
 /** Local time at a place (hours, may exceed 24) → UTC timestamp. */
@@ -222,6 +227,21 @@ export function planAlerts(input: ScheduleInput): PlannedAlert[] {
         }
       }
     }
+    // Ramadan: a reminder before Sehri ends (Fajr).
+    if (settings.sehriMinutes > 0 && isRamadan(date, input.hijriAdjust)) {
+      const at =
+        localToUtcMs(date, times.fajr, offset) - settings.sehriMinutes * 60000;
+      if (future(at)) {
+        plan.push({
+          id: `sehri-${key}`,
+          kind: 'sehri',
+          prayer: 'fajr',
+          at,
+          hours: times.fajr,
+          minutes: settings.sehriMinutes,
+        });
+      }
+    }
     if (settings.sunrise) {
       const at = localToUtcMs(date, times.sunrise, offset);
       if (future(at)) {
@@ -254,7 +274,10 @@ export function buildNotification(
   const time = formatTime(a.hours);
   let title: string;
   let body: string;
-  if (a.prayer === 'sunrise') {
+  if (a.kind === 'sehri') {
+    title = `Sehri ends in ${a.minutes} minutes`;
+    body = `Fajr (end of Sehri) is at ${time} in ${place.name}.`;
+  } else if (a.prayer === 'sunrise') {
     title = 'Sunrise · الشروق';
     body = `The sun rises at ${time} in ${place.name}. Fajr time has ended.`;
   } else {
@@ -268,6 +291,8 @@ export function buildNotification(
     }
   }
   const isAdhan = a.kind === 'adhan';
+  // Sehri reminders wake people up, so they're treated like an alarm.
+  const isAlarm = isAdhan || a.kind === 'sehri';
   return {
     id: a.id,
     title,
@@ -275,7 +300,7 @@ export function buildNotification(
     data: { prayer: a.prayer, kind: a.kind },
     android: {
       channelId: channelFor(a),
-      category: isAdhan ? AndroidCategory.ALARM : AndroidCategory.REMINDER,
+      category: isAlarm ? AndroidCategory.ALARM : AndroidCategory.REMINDER,
       importance:
         a.kind === 'reminder'
           ? AndroidImportance.DEFAULT

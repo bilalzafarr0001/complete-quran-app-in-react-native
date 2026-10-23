@@ -1,3 +1,10 @@
+import {
+  isRamadan,
+  nextFastEvent,
+  oddNightAfter,
+  ordinal,
+  ramadanFor,
+} from '../src/noor/logic/ramadan';
 import { DUA_CATEGORIES, DUAS } from '../src/noor/data/duas';
 import {
   defaultsForCountry,
@@ -9,6 +16,7 @@ import { QURAN_TEXT } from '../src/noor/data/quran';
 import { SURAHS } from '../src/noor/data/surahs';
 import { toHijri } from '../src/noor/logic/hijri';
 import {
+  addDays,
   calculatePrayerTimes,
   formatCountdown,
   formatTime,
@@ -302,5 +310,81 @@ describe('duas', () => {
     expect(DUAS.filter(d => d.category === 'Janazah').length).toBeGreaterThan(
       4,
     );
+  });
+});
+
+describe('ramadan', () => {
+  const SHABAN = { y: 2026, m: 1, d: 20 }; // Sha'ban 1447
+
+  test('finds the next Ramadan and all its days', () => {
+    const r = ramadanFor(SHABAN);
+    expect(r.today).toBeNull();
+    expect(r.year).toBe(1447);
+    const start = r.days[0].date;
+    expect(toHijri(start)).toMatchObject({ month: 9, day: 1 });
+    expect(toHijri(addDays(start, -1)).month).toBe(8);
+    expect(addDays(SHABAN, r.daysUntil)).toEqual(start);
+    expect(r.days.length).toBeGreaterThanOrEqual(29);
+    expect(r.days.map(d => d.day)).toEqual(r.days.map((_, i) => i + 1));
+    const after = addDays(r.days[r.days.length - 1].date, 1);
+    expect(toHijri(after).month).toBe(10); // Shawwal: Eid
+  });
+
+  test('during Ramadan: today is the day of the month', () => {
+    const start = ramadanFor(SHABAN).days[0].date;
+    const r = ramadanFor(addDays(start, 11));
+    expect(r.today).toBe(12);
+    expect(r.daysUntil).toBe(0);
+    expect(r.days[0].date).toEqual(start);
+    expect(isRamadan(addDays(start, 11))).toBe(true);
+    expect(isRamadan(addDays(start, -1))).toBe(false);
+  });
+
+  test('a moon-sighting adjustment moves the start', () => {
+    const start = ramadanFor(SHABAN).days[0].date;
+    expect(ramadanFor(SHABAN, 1).days[0].date).toEqual(addDays(start, -1));
+  });
+
+  test('next fasting moment: Sehri, then Iftar, then tomorrow’s Sehri', () => {
+    const t = {
+      fajr: 5,
+      sunrise: 6.3,
+      dhuhr: 12.1,
+      asr: 15.6,
+      maghrib: 18,
+      isha: 19.4,
+    };
+    const tm = { ...t, fajr: 4.98 };
+    expect(nextFastEvent(3, t, tm, true)).toEqual({ kind: 'sehri', at: 5 });
+    expect(nextFastEvent(13, t, tm, true)).toEqual({ kind: 'iftar', at: 18 });
+    expect(nextFastEvent(20, t, tm, true)).toEqual({
+      kind: 'sehri',
+      at: 28.98,
+    });
+    expect(nextFastEvent(20, t, tm, false)).toBeNull(); // last day: Eid
+  });
+
+  test('odd nights of the last ten begin at Iftar the day before', () => {
+    expect([19, 20, 21, 22, 26, 28, 29].map(oddNightAfter)).toEqual([
+      null,
+      21,
+      null,
+      23,
+      27,
+      29,
+      null,
+    ]);
+    expect([1, 2, 3, 11, 12, 13, 21, 22, 23, 27].map(ordinal)).toEqual([
+      '1st',
+      '2nd',
+      '3rd',
+      '11th',
+      '12th',
+      '13th',
+      '21st',
+      '22nd',
+      '23rd',
+      '27th',
+    ]);
   });
 });

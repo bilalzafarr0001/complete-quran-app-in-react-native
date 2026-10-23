@@ -31,8 +31,10 @@ export function useAdhanScheduler() {
     };
   }, []);
 
+  const hijriAdjust = state.hijriAuto + state.hijriOffset;
   const key = JSON.stringify([
     state.notifications,
+    hijriAdjust,
     place.lat,
     place.lng,
     place.timeZone,
@@ -49,6 +51,7 @@ export function useAdhanScheduler() {
         method: state.method,
         madhab: state.madhab,
         settings: state.notifications,
+        hijriAdjust,
       }).catch(() => {
         // Scheduling failures are retried on the next change / resume.
       });

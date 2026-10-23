@@ -2,6 +2,7 @@ import notifee from '@notifee/react-native';
 import { NativeModules, Platform } from 'react-native';
 import TrackPlayer from 'react-native-track-player';
 import type { Place } from '../src/noor/data/places';
+import { isRamadan } from '../src/noor/logic/ramadan';
 import {
   buildNotification,
   CHANNELS,
@@ -52,6 +53,7 @@ const ON: NotifySettings = {
     isha: 'adhan',
   },
   reminderMinutes: 0,
+  sehriMinutes: 0,
   sunrise: false,
 };
 
@@ -258,6 +260,48 @@ describe('adhan schedule', () => {
     expect(
       [...triggers.values()].every(t => t.trigger.alarmManager.type === 3),
     ).toBe(true);
+  });
+});
+
+describe('sehri reminders (Ramadan)', () => {
+  // 25 Feb 2026, 05:00 in Lahore: during Ramadan 1447.
+  const RAMADAN_NOW = Date.UTC(2026, 1, 25, 0, 0);
+  const plan = (now: number, sehriMinutes: 0 | 45) =>
+    planAlerts({
+      place: LAHORE,
+      method: 'karachi',
+      madhab: 'hanafi',
+      settings: { ...ON, sehriMinutes },
+      now,
+      days: 3,
+    });
+
+  test('a reminder before Fajr on Ramadan days only', () => {
+    expect(isRamadan({ y: 2026, m: 2, d: 25 })).toBe(true);
+    const alerts = plan(RAMADAN_NOW, 45);
+    const sehri = alerts.filter(a => a.kind === 'sehri');
+    // Today's Sehri (≈4:40) has passed at 05:00, so tomorrow and the day after.
+    expect(sehri.map(a => a.id)).toEqual([
+      'sehri-2026-2-26',
+      'sehri-2026-2-27',
+    ]);
+    for (const s of sehri) {
+      const fajr = alerts.find(
+        a => a.id === s.id.replace('sehri-', 'adhan-') + '-fajr',
+      )!;
+      expect(fajr.at - s.at).toBe(45 * 60000);
+    }
+    const n = buildNotification(sehri[0], LAHORE, 0);
+    expect(n.title).toBe('Sehri ends in 45 minutes');
+    expect(n.body).toMatch(
+      /^Fajr \(end of Sehri\) is at \d+:\d\d AM in Lahore\.$/,
+    );
+  });
+
+  test('nothing when off, or outside Ramadan', () => {
+    expect(plan(RAMADAN_NOW, 0).some(a => a.kind === 'sehri')).toBe(false);
+    const october = Date.UTC(2026, 9, 19, 5, 0);
+    expect(plan(october, 45).some(a => a.kind === 'sehri')).toBe(false);
   });
 });
 
