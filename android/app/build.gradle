@@ -59,6 +59,9 @@ react {
  */
 def enableProguardInReleaseBuilds = false
 
+/** True once the Google Play upload key is configured (see signingConfigs). */
+def hasUploadKey = project.hasProperty('NOOR_UPLOAD_STORE_FILE')
+
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
  *
@@ -79,7 +82,7 @@ android {
 
     namespace "com.myapp"
     defaultConfig {
-        applicationId "com.myapp"
+        applicationId "com.noorislamic.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 2
@@ -92,15 +95,25 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            // Google Play upload key. The paths and passwords live in
+            // ~/.gradle/gradle.properties, outside the project (never in git).
+            if (hasUploadKey) {
+                storeFile file(NOOR_UPLOAD_STORE_FILE)
+                storePassword NOOR_UPLOAD_STORE_PASSWORD
+                keyAlias NOOR_UPLOAD_KEY_ALIAS
+                keyPassword NOOR_UPLOAD_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Signed with the upload key once it's set up; until then with the
+            // debug key, so test APKs still build (Play rejects those).
+            signingConfig hasUploadKey ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
