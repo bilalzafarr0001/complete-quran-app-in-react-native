@@ -133,6 +133,32 @@ describe('Noor screens render without crashing', () => {
     }
   });
 
+  test('duas can be filtered to Ramadan and Janazah', async () => {
+    await pressByLabel(renderer.root, 'More');
+    const pressText = async (label: string) => {
+      const node = renderer.root
+        .findAll(
+          n =>
+            typeof n.props.onPress === 'function' &&
+            n.findAll(c => c.children.includes(label)).length > 0,
+        )
+        .pop()!;
+      await ReactTestRenderer.act(async () => {
+        node.props.onPress();
+        jest.advanceTimersByTime(1000);
+      });
+    };
+    await pressText('Duas');
+    await pressText('Janazah');
+    let text = textContent(renderer.root);
+    expect(text).toContain('Janazah: after the 3rd takbir (adult)');
+    expect(text).not.toContain('Before eating');
+    await pressText('Ramadan');
+    text = textContent(renderer.root);
+    expect(text).toContain('At the time of Iftar');
+    expect(text).not.toContain('Janazah: after the 3rd takbir (adult)');
+  });
+
   test('reads a surah, bookmarks and counts tasbeeh', async () => {
     await pressByLabel(renderer.root, 'Quran');
     const fatiha = renderer.root.findAll(

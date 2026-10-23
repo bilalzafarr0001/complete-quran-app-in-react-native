@@ -174,7 +174,7 @@ export function DuasScreen() {
         collapsible={header}
         title="Daily Duas"
         arabic="الأدعية"
-        subtitle={`${DUAS.length} authentic supplications`}
+        subtitle={`${DUAS.length} supplications, each with its source`}
       >
         <ScrollView
           horizontal

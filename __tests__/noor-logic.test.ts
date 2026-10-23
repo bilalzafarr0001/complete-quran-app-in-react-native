@@ -1,3 +1,4 @@
+import { DUA_CATEGORIES, DUAS } from '../src/noor/data/duas';
 import {
   defaultsForCountry,
   DEFAULT_PLACE,
@@ -270,5 +271,36 @@ describe('hijri & qibla', () => {
 
   test('qibla from London is roughly 119°', () => {
     expect(qiblaBearing(LONDON.lat, LONDON.lng)).toBeCloseTo(119, 0);
+  });
+});
+
+describe('duas', () => {
+  test('every dua is complete, has a unique id and a source', () => {
+    const ids = new Set(DUAS.map(d => d.id));
+    expect(ids.size).toBe(DUAS.length);
+    for (const d of DUAS) {
+      for (const field of [
+        d.title,
+        d.arabic,
+        d.transliteration,
+        d.translation,
+        d.reference,
+      ]) {
+        expect(field.trim()).not.toBe('');
+      }
+      expect(DUA_CATEGORIES).toContain(d.category);
+    }
+  });
+
+  test('every category, including Ramadan and Janazah, has duas', () => {
+    for (const c of DUA_CATEGORIES) {
+      expect(DUAS.some(d => d.category === c)).toBe(true);
+    }
+    expect(DUAS.filter(d => d.category === 'Ramadan').length).toBeGreaterThan(
+      4,
+    );
+    expect(DUAS.filter(d => d.category === 'Janazah').length).toBeGreaterThan(
+      4,
+    );
   });
 });
