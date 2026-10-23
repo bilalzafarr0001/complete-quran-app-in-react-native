@@ -39,7 +39,7 @@ export function useAdhanControls() {
       setPerm(p);
       if (!p.notifications) {
         setError(
-          'Notifications are turned off for Noor. Allow them in system settings to hear the adhan.',
+          'Notifications are turned off for Falaq. Allow them in system settings to hear the adhan.',
         );
         return false;
       }

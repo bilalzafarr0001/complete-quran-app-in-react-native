@@ -4,8 +4,8 @@ import { Crescent, SpinningStar } from '../components/Decor';
 import { Star8 } from '../components/Star8';
 import { onHero } from '../theme';
 
-const GOLD = '#F1CF74';
-const SILHOUETTE = 'rgba(247,231,180,0.92)';
+const GOLD = '#FFC58A';
+const SILHOUETTE = 'rgba(255,226,196,0.92)';
 
 function useLoop(duration: number, bounce = true) {
   const t = useRef(new Animated.Value(0)).current;
@@ -53,7 +53,7 @@ export function CrescentArt() {
       <View
         style={[
           styles.glow,
-          { boxShadow: '0px 0px 90px 30px rgba(241,207,116,0.25)' },
+          { boxShadow: '0px 0px 90px 30px rgba(255,197,138,0.25)' },
         ]}
       />
       <Animated.View style={[styles.abs, { transform: [{ rotate }] }]}>
@@ -83,7 +83,7 @@ export function CrescentArt() {
         <Crescent
           size={150}
           color={GOLD}
-          glow="0px 0px 40px rgba(241,207,116,0.6)"
+          glow="0px 0px 40px rgba(255,197,138,0.6)"
         />
       </Animated.View>
     </View>
@@ -97,7 +97,7 @@ export function QuranArt() {
     <View style={styles.stage}>
       <SpinningStar
         size={250}
-        color="rgba(241,207,116,0.55)"
+        color="rgba(255,197,138,0.55)"
         duration={30000}
       />
       <Animated.View
@@ -120,7 +120,7 @@ export function QuranArt() {
           color="rgba(255,255,255,0.10)"
           outline
           borderWidth={2}
-          fill="rgba(6,48,31,0.6)"
+          fill="rgba(58,22,48,0.6)"
         >
           <Text style={styles.iqra}>اقْرَأْ</Text>
         </Star8>
@@ -233,7 +233,7 @@ export function DhikrArt() {
                   backgroundColor: big
                     ? GOLD
                     : i < 12
-                    ? 'rgba(241,207,116,0.9)'
+                    ? 'rgba(255,197,138,0.9)'
                     : 'rgba(255,255,255,0.35)',
                 },
               ]}
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   iqra: {
     color: GOLD,
     fontSize: 56,
-    textShadowColor: 'rgba(241,207,116,0.7)',
+    textShadowColor: 'rgba(255,197,138,0.7)',
     textShadowRadius: 18,
   },
   arc: {
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderBottomWidth: 0,
     borderStyle: 'dashed',
-    borderColor: 'rgba(241,207,116,0.4)',
+    borderColor: 'rgba(255,197,138,0.4)',
   },
   sunWrap: { position: 'absolute', top: 40 + 120 - 15, left: 140 - 15 },
   sun: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#FFD666' },
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     height: 36,
     borderTopLeftRadius: 15,
     borderTopRightRadius: 15,
-    backgroundColor: '#0B5A40',
+    backgroundColor: '#8E3457',
   },
   minaretLeft: { alignItems: 'center' },
   minaretRight: { alignItems: 'center' },

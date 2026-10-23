@@ -14,7 +14,7 @@ import com.facebook.react.module.model.ReactModuleInfoProvider
 class AdhanModule(context: ReactApplicationContext) : ReactContextBaseJavaModule(context) {
   override fun getName() = NAME
 
-  /** Replaces all scheduled adhans with [alarms]: [{id, at, fajr, title, body}]. */
+  /** Replaces all scheduled adhans with [alarms]: [{id, at, fajr, title, body, sound}]. */
   @ReactMethod
   fun schedule(alarms: ReadableArray, promise: Promise) {
     try {
@@ -27,6 +27,7 @@ class AdhanModule(context: ReactApplicationContext) : ReactContextBaseJavaModule
                   it.getBoolean("fajr"),
                   it.getString("title") ?: "",
                   it.getString("body") ?: "",
+                  if (it.hasKey("sound")) it.getString("sound") ?: "" else "",
               )
             }
           }
@@ -49,10 +50,18 @@ class AdhanModule(context: ReactApplicationContext) : ReactContextBaseJavaModule
 
   /** Plays an adhan after [delayMs], through the same alarm → service path. */
   @ReactMethod
-  fun test(fajr: Boolean, delayMs: Double, title: String, body: String, promise: Promise) {
+  fun test(
+      fajr: Boolean,
+      sound: String,
+      delayMs: Double,
+      title: String,
+      body: String,
+      promise: Promise,
+  ) {
     try {
       val at = System.currentTimeMillis() + delayMs.toLong()
-      AdhanAlarms.setOnce(reactApplicationContext, AdhanAlarm("test-adhan", at, fajr, title, body))
+      AdhanAlarms.setOnce(
+          reactApplicationContext, AdhanAlarm("test-adhan", at, fajr, title, body, sound))
       promise.resolve(null)
     } catch (e: Exception) {
       promise.reject("E_ADHAN_TEST", e)

@@ -10,6 +10,7 @@ import {
   planAlerts,
   scheduleAlerts,
   sendTestAdhan,
+  adhanSound,
 } from '../src/noor/services/adhan';
 import {
   ayahAudioUrl,
@@ -52,6 +53,7 @@ const ON: NotifySettings = {
     maghrib: 'adhan',
     isha: 'adhan',
   },
+  adhanLength: 'short',
   reminderMinutes: 0,
   sehriMinutes: 0,
   sunrise: false,
@@ -376,14 +378,48 @@ describe('adhan on Android (native player)', () => {
     expect(native.schedule).toHaveBeenCalledWith([]);
   });
 
-  test('test adhan uses the native player', async () => {
-    await sendTestAdhan(LAHORE, true, 5);
+  test('test adhan uses the native player with the chosen length', async () => {
+    await sendTestAdhan(LAHORE, true, 'short', 5);
     expect(native.test).toHaveBeenCalledWith(
       true,
+      'adhan_short',
+      5000,
+      'Test · Fajr adhan',
+      'This is how the adhan will sound at prayer time.',
+    );
+    await sendTestAdhan(LAHORE, true, 'full', 5);
+    expect(native.test).toHaveBeenLastCalledWith(
+      true,
+      'adhan_fajr',
       5000,
       'Test · Fajr adhan',
       'This is how the adhan will sound at prayer time.',
     );
     expect(triggers.size).toBe(0);
+  });
+
+  test('short adhan by default; full adhan uses the Fajr recording at Fajr', async () => {
+    const soundsFor = async (adhanLength: 'short' | 'full') => {
+      native.schedule.mockClear();
+      await scheduleAlerts({
+        place: LAHORE,
+        method: 'karachi',
+        madhab: 'hanafi',
+        settings: { ...ON, adhanLength },
+        now: NOW,
+        days: 2,
+      });
+      const alarms = native.schedule.mock.calls[0][0] as {
+        id: string;
+        sound: string;
+      }[];
+      return Object.fromEntries(alarms.map(a => [a.id, a.sound]));
+    };
+    const short = await soundsFor('short');
+    expect(new Set(Object.values(short))).toEqual(new Set(['adhan_short']));
+    const full = await soundsFor('full');
+    expect(full['adhan-2026-10-20-fajr']).toBe('adhan_fajr');
+    expect(full['adhan-2026-10-20-asr']).toBe('adhan');
+    expect(adhanSound(false, 'short')).toBe('adhan_short');
   });
 });

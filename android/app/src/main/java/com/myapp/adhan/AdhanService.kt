@@ -81,7 +81,7 @@ class AdhanService : Service() {
       player = mp
       mp.setAudioAttributes(attrs)
       mp.setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
-      resources.openRawResourceFd(AdhanNotifications.soundRes(alarm)).use { afd ->
+      resources.openRawResourceFd(AdhanNotifications.soundRes(this, alarm)).use { afd ->
         mp.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
       }
       mp.setOnCompletionListener { finish(completed = true) }
@@ -175,15 +175,21 @@ class AdhanService : Service() {
 internal object AdhanNotifications {
   private const val CHANNEL_PLAYING = "noor-adhan-playing-v1"
   private const val CHANNEL_DONE = "noor-adhan-done-v1"
-  // Backup channels play the adhan as the notification sound (alarm stream).
-  private const val CHANNEL_SOUND = "noor-adhan-sound-v1"
-  private const val CHANNEL_SOUND_FAJR = "noor-adhan-sound-fajr-v1"
-  private const val COLOR = 0xFF0E6B4E.toInt()
+  // Backup channels play the adhan as the notification sound (alarm stream),
+  // one per sound file. These two are from older versions and are removed.
+  private val OLD_CHANNELS = listOf("noor-adhan-sound-v1", "noor-adhan-sound-fajr-v1")
+  private const val COLOR = 0xFFA23E5C.toInt()
   // Not the service's id: removing the foreground notification is async and
   // would also remove a notification posted right after with the same id.
   private const val PRAYER_NOTIFICATION_ID = 6101
 
-  fun soundRes(alarm: AdhanAlarm) = if (alarm.fajr) R.raw.adhan_fajr else R.raw.adhan
+  /** The res/raw file to play: the alarm's chosen sound, else the full adhan. */
+  fun soundRes(context: Context, alarm: AdhanAlarm): Int {
+    val chosen =
+        if (alarm.sound.isEmpty()) 0
+        else context.resources.getIdentifier(alarm.sound, "raw", context.packageName)
+    return if (chosen != 0) chosen else if (alarm.fajr) R.raw.adhan_fajr else R.raw.adhan
+  }
 
   fun playing(context: Context, alarm: AdhanAlarm): Notification {
     ensureChannels(context)
@@ -216,15 +222,40 @@ internal object AdhanNotifications {
 
   fun fallback(context: Context, alarm: AdhanAlarm) {
     ensureChannels(context)
-    val channel = if (alarm.fajr) CHANNEL_SOUND_FAJR else CHANNEL_SOUND
+    val res = soundRes(context, alarm)
+    val channel = soundChannel(context, res)
     notify(
         context,
         base(context, channel, alarm)
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             // Android 7 has no channels: the sound is set on the notification.
-            .setSound(soundUri(context, alarm), AudioManager.STREAM_ALARM)
+            .setSound(soundUri(context, res), AudioManager.STREAM_ALARM)
             .build())
+  }
+
+  /** A backup channel whose notification sound is this adhan file. */
+  private fun soundChannel(context: Context, res: Int): String {
+    val name = context.resources.getResourceEntryName(res)
+    val id = "noor-adhan-sound-$name-v1"
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+        manager(context).getNotificationChannel(id) == null) {
+      manager(context)
+          .createNotificationChannel(
+              NotificationChannel(id, "Adhan backup ($name)", NotificationManager.IMPORTANCE_HIGH)
+                  .apply {
+                    description = "Used only if Android blocks the adhan player"
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                    setSound(
+                        soundUri(context, res),
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build())
+                    enableVibration(true)
+                  })
+    }
+    return id
   }
 
   private fun base(context: Context, channel: String, alarm: AdhanAlarm) =
@@ -253,52 +284,33 @@ internal object AdhanNotifications {
     }
   }
 
-  private fun soundUri(context: Context, alarm: AdhanAlarm): Uri =
-      Uri.parse(
-          "${ContentResolver.SCHEME_ANDROID_RESOURCE}://${context.packageName}/${soundRes(alarm)}")
+  private fun soundUri(context: Context, res: Int): Uri =
+      Uri.parse("${ContentResolver.SCHEME_ANDROID_RESOURCE}://${context.packageName}/$res")
 
   private fun ensureChannels(context: Context) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-    val alarmAttrs =
-        AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ALARM)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
-    fun channel(
-        id: String,
-        name: String,
-        desc: String,
-        sound: Uri?,
-        importance: Int = NotificationManager.IMPORTANCE_HIGH,
-    ) =
+    fun channel(id: String, name: String, desc: String, importance: Int) =
         NotificationChannel(id, name, importance).apply {
           description = desc
           lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-          setSound(sound, if (sound == null) null else alarmAttrs)
-          enableVibration(sound != null)
+          setSound(null, null)
+          enableVibration(false)
         }
-    fun raw(fajr: Boolean) = soundUri(context, AdhanAlarm("", 0, fajr, "", ""))
-    manager(context)
-        .createNotificationChannels(
-            listOf(
-                channel(CHANNEL_PLAYING, "Adhan", "Shown while the adhan is playing", null),
-                channel(
-                    CHANNEL_DONE,
-                    "Prayer time",
-                    "After the adhan has finished",
-                    null,
-                    NotificationManager.IMPORTANCE_LOW),
-                channel(
-                    CHANNEL_SOUND,
-                    "Adhan (backup sound)",
-                    "Used only if Android blocks the adhan player",
-                    raw(false)),
-                channel(
-                    CHANNEL_SOUND_FAJR,
-                    "Fajr adhan (backup sound)",
-                    "Used only if Android blocks the adhan player",
-                    raw(true)),
-            ))
+    val manager = manager(context)
+    OLD_CHANNELS.forEach { manager.deleteNotificationChannel(it) }
+    manager.createNotificationChannels(
+        listOf(
+            channel(
+                CHANNEL_PLAYING,
+                "Adhan",
+                "Shown while the adhan is playing",
+                NotificationManager.IMPORTANCE_HIGH),
+            channel(
+                CHANNEL_DONE,
+                "Prayer time",
+                "After the adhan has finished",
+                NotificationManager.IMPORTANCE_LOW),
+        ))
   }
 
   private fun manager(context: Context) =

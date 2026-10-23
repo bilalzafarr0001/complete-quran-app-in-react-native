@@ -187,7 +187,7 @@ export function VerseOfMoment() {
 
   const surah = shown ? getSurah(shown.surah) : null;
   const collapsed = !!shown && isLong(shown) && !expanded;
-  const gold = theme.isDark ? 'rgba(226,188,85,' : 'rgba(197,154,42,';
+  const gold = theme.isDark ? 'rgba(244,162,107,' : 'rgba(196,96,47,';
 
   const share = () => {
     if (!shown || !surah) return;
@@ -423,7 +423,7 @@ export function VerseOfMoment() {
               }
               disabled={!shown}
               accessibilityLabel="Read in Quran"
-              style={[styles.btn, { backgroundImage: theme.green3 }]}
+              style={[styles.btn, { backgroundImage: theme.primary3 }]}
             >
               <Text style={[styles.btnText, styles.btnTextOnGreen]}>
                 Read in Quran ›

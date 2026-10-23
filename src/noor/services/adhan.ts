@@ -26,7 +26,7 @@ import {
 } from '../logic/prayerTimes';
 import { isRamadan } from '../logic/ramadan';
 import { offsetOn, placeNow } from '../logic/timezone';
-import type { NotifySettings, SalahKey } from '../store';
+import type { AdhanLength, NotifySettings, SalahKey } from '../store';
 
 /**
  * Android channel ids. A channel's sound can't change after creation,
@@ -51,6 +51,8 @@ type NativeAdhanAlarm = {
   fajr: boolean;
   title: string;
   body: string;
+  /** A file in android/app/src/main/res/raw (without extension). */
+  sound: string;
 };
 
 /**
@@ -64,12 +66,22 @@ type NativeAdhan = {
   cancelAll(): Promise<void>;
   test(
     fajr: boolean,
+    sound: string,
     delayMs: number,
     title: string,
     body: string,
   ): Promise<void>;
   stop(): Promise<void>;
 };
+
+/**
+ * The recording to play: the opening "Allahu Akbar, Allahu Akbar" (short), or
+ * the full adhan, which for Fajr includes "as-salatu khayrun min an-nawm".
+ */
+export function adhanSound(fajr: boolean, length: AdhanLength) {
+  if (length === 'short') return 'adhan_short';
+  return fajr ? 'adhan_fajr' : 'adhan';
+}
 
 function nativeAdhan(): NativeAdhan | undefined {
   return Platform.OS === 'android' ? NativeModules.NoorAdhan : undefined;
@@ -305,7 +317,7 @@ export function buildNotification(
         a.kind === 'reminder'
           ? AndroidImportance.DEFAULT
           : AndroidImportance.HIGH,
-      color: '#0E6B4E',
+      color: '#A23E5C',
       timestamp: a.at,
       showTimestamp: true,
       autoCancel: true,
@@ -355,6 +367,7 @@ export async function scheduleAlerts(input: ScheduleInput): Promise<number> {
           fajr: a.prayer === 'fajr',
           title: n.title ?? '',
           body: n.body ?? '',
+          sound: adhanSound(a.prayer === 'fajr', input.settings.adhanLength),
         };
       }),
     );
@@ -379,7 +392,12 @@ export async function cancelAllAlerts() {
 }
 
 /** Plays a real adhan alert in a few seconds, exactly as scheduled ones do. */
-export async function sendTestAdhan(place: Place, fajr = false, seconds = 5) {
+export async function sendTestAdhan(
+  place: Place,
+  fajr = false,
+  length: AdhanLength = 'short',
+  seconds = 5,
+) {
   await ensureChannels();
   const { exactAlarms } = await getAdhanPermission();
   const at = Date.now() + seconds * 1000;
@@ -398,7 +416,13 @@ export async function sendTestAdhan(place: Place, fajr = false, seconds = 5) {
   n.body = 'This is how the adhan will sound at prayer time.';
   const native = nativeAdhan();
   if (native) {
-    await native.test(fajr, seconds * 1000, n.title, n.body);
+    await native.test(
+      fajr,
+      adhanSound(fajr, length),
+      seconds * 1000,
+      n.title,
+      n.body,
+    );
     return;
   }
   await notifee.createTriggerNotification(n, triggerAt(at, exactAlarms));

@@ -1,6 +1,7 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SpinningStar } from '../components/Decor';
 import { FadeIn } from '../components/FadeIn';
+import { FalaqMark } from '../components/FalaqMark';
 import { PressableScale } from '../components/PressableScale';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Route, useNav } from '../navigation/nav';
@@ -77,7 +78,7 @@ export function MoreScreen() {
         <ScreenHeader
           title="More"
           arabic="المزيد"
-          subtitle="Everything else in Noor"
+          subtitle="Everything else in Falaq"
         >
           <View style={styles.stats}>
             {stats.map(s => (
@@ -136,13 +137,14 @@ export function MoreScreen() {
           <View style={[styles.about, { backgroundImage: theme.hero }]}>
             <SpinningStar
               size={180}
-              color="rgba(241,207,116,0.18)"
+              color="rgba(255,197,138,0.18)"
               style={styles.aboutStar}
             />
-            <Text style={styles.aboutArabic}>نُور</Text>
-            <Text style={styles.aboutTitle}>Noor · Quran & Prayer</Text>
+            <FalaqMark size={72} />
+            <Text style={styles.aboutArabic}>الْفَلَق</Text>
+            <Text style={styles.aboutTitle}>Falaq · Quran & Prayer</Text>
             <Text style={styles.aboutText}>
-              “Allah is the Light of the heavens and the earth.” — An-Nur 24:35
+              “Say, I seek refuge in the Lord of daybreak.” — Al-Falaq 113:1
             </Text>
           </View>
         </FadeIn>
@@ -194,7 +196,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   aboutStar: { right: -40, top: -40 },
-  aboutArabic: { color: onHero.gold, fontSize: 40 },
+  aboutArabic: { color: onHero.gold, fontSize: 28, marginTop: 4 },
   aboutTitle: {
     color: '#FFFFFF',
     fontSize: 17,

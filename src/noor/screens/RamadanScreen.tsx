@@ -78,7 +78,7 @@ export function RamadanScreen() {
     Share.share({
       message: `Ramadan ${info.year}: Sehri & Iftar timetable\n${
         place.name
-      }\n\n${lines.join('\n')}\n\nShared from Noor`,
+      }\n\n${lines.join('\n')}\n\nShared from Falaq`,
     });
   };
 
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
   dayCol: { width: 46 },
   timeCol: { width: 78, textAlign: 'right' },
   dayNum: { fontSize: 12, fontWeight: '900' },
-  dayNumToday: { color: '#2A1E00' },
+  dayNumToday: { color: '#3A1630' },
   date: { fontSize: 14.5, fontWeight: '700' },
   night: { fontSize: 11.5, fontWeight: '700', marginTop: 2 },
   time: { fontSize: 14.5, fontWeight: '800' },

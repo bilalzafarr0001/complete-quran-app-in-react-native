@@ -9,13 +9,14 @@ import android.os.Build
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** One scheduled adhan. */
+/** One scheduled adhan. `sound` names a res/raw file ("" = the full adhan). */
 data class AdhanAlarm(
     val id: String,
     val at: Long,
     val fajr: Boolean,
     val title: String,
     val body: String,
+    val sound: String = "",
 ) {
   fun toJson(): JSONObject =
       JSONObject()
@@ -24,6 +25,7 @@ data class AdhanAlarm(
           .put("fajr", fajr)
           .put("title", title)
           .put("body", body)
+          .put("sound", sound)
 
   fun putInto(intent: Intent): Intent =
       intent
@@ -32,6 +34,7 @@ data class AdhanAlarm(
           .putExtra(EXTRA_FAJR, fajr)
           .putExtra(EXTRA_TITLE, title)
           .putExtra(EXTRA_BODY, body)
+          .putExtra(EXTRA_SOUND, sound)
 
   companion object {
     private const val EXTRA_ID = "id"
@@ -39,6 +42,7 @@ data class AdhanAlarm(
     private const val EXTRA_FAJR = "fajr"
     private const val EXTRA_TITLE = "title"
     private const val EXTRA_BODY = "body"
+    private const val EXTRA_SOUND = "sound"
 
     fun fromJson(o: JSONObject) =
         AdhanAlarm(
@@ -47,6 +51,7 @@ data class AdhanAlarm(
             o.getBoolean("fajr"),
             o.getString("title"),
             o.getString("body"),
+            o.optString("sound", ""),
         )
 
     fun fromIntent(intent: Intent?): AdhanAlarm? {
@@ -57,6 +62,7 @@ data class AdhanAlarm(
           intent.getBooleanExtra(EXTRA_FAJR, false),
           intent.getStringExtra(EXTRA_TITLE) ?: "",
           intent.getStringExtra(EXTRA_BODY) ?: "",
+          intent.getStringExtra(EXTRA_SOUND) ?: "",
       )
     }
   }

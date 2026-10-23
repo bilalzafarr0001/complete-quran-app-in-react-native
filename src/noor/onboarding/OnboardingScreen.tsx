@@ -33,7 +33,7 @@ const SLIDES = [
   {
     key: 'welcome',
     arabic: 'السَّلَامُ عَلَيْكُمْ',
-    title: 'Welcome to Noor',
+    title: 'Welcome to Falaq',
     body: 'Your daily companion for the Quran, prayer and the remembrance of Allah.',
     Art: CrescentArt,
   },
@@ -196,7 +196,7 @@ export function OnboardingScreen() {
                 maxFontSizeMultiplier={1.3}
                 style={[styles.title, { fontSize: fs(30) }]}
               >
-                Let's set up Noor
+                Let's set up Falaq
               </Text>
               <Text maxFontSizeMultiplier={1.4} style={styles.body}>
                 So we can greet you and calculate prayer times exactly where you
@@ -323,7 +323,7 @@ export function OnboardingScreen() {
       <StarField count={40} height={900} seed={3} />
       <SpinningStar
         size={420}
-        color="rgba(241,207,116,0.08)"
+        color="rgba(255,197,138,0.08)"
         style={styles.bgStar}
         duration={90000}
       />
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     padding: 14,
     backgroundColor: onHero.faint,
     borderWidth: 1,
-    borderColor: 'rgba(241,207,116,0.55)',
+    borderColor: 'rgba(255,197,138,0.55)',
   },
   placePin: { fontSize: 24 },
   placeName: { color: '#FFFFFF', fontSize: 17, fontWeight: '800' },
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   nextWide: { paddingHorizontal: 26 },
-  nextText: { color: '#2A1E00', fontSize: 18, fontWeight: '900' },
+  nextText: { color: '#3A1630', fontSize: 18, fontWeight: '900' },
   skip: {
     position: 'absolute',
     right: 20,

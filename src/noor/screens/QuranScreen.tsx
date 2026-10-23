@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     lineHeight: 40,
   },
   emptyBox: { alignItems: 'center', marginTop: 50, paddingHorizontal: 30 },
-  emptyStar: { fontSize: 24, color: '#C59A2A' },
+  emptyStar: { fontSize: 24, color: '#C4602F' },
   emptyTitle: { fontSize: 18, fontWeight: '800', marginTop: 18 },
   empty: { fontSize: 14, textAlign: 'center', marginTop: 8, lineHeight: 20 },
 });

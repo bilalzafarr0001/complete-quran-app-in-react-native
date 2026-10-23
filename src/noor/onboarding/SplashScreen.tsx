@@ -1,34 +1,44 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { StarField } from '../components/Decor';
-import { Star8 } from '../components/Star8';
+import { FalaqMark } from '../components/FalaqMark';
 import { onHero, useTheme } from '../theme';
 
-/** Animated launch screen: rosette spins in, "Noor" fades up, then everything fades away. */
+/**
+ * Animated launch screen: the arch appears, the sun rises behind its horizon
+ * ("Falaq" is daybreak), the name fades up, then everything fades away.
+ */
 export function SplashScreen({ onDone }: { onDone: () => void }) {
   const theme = useTheme();
-  const star = useRef(new Animated.Value(0)).current;
+  const mark = useRef(new Animated.Value(0)).current;
+  const rise = useRef(new Animated.Value(0)).current;
   const text = useRef(new Animated.Value(0)).current;
   const out = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.sequence([
+      Animated.timing(mark, {
+        toValue: 1,
+        duration: 450,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
       Animated.parallel([
-        Animated.spring(star, {
+        Animated.timing(rise, {
           toValue: 1,
-          friction: 6,
-          tension: 30,
+          duration: 1000,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(text, {
           toValue: 1,
           duration: 700,
-          delay: 450,
+          delay: 350,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]),
-      Animated.delay(650),
+      Animated.delay(550),
       Animated.timing(out, {
         toValue: 0,
         duration: 420,
@@ -36,7 +46,7 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
         useNativeDriver: true,
       }),
     ]).start(({ finished }) => finished && onDone());
-  }, [star, text, out, onDone]);
+  }, [mark, rise, text, out, onDone]);
 
   return (
     <Animated.View
@@ -46,42 +56,22 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
         { backgroundImage: theme.hero, opacity: out },
       ]}
     >
-      <StarField count={36} height={900} seed={11} />
+      <StarField count={30} height={520} seed={11} />
       <Animated.View
         style={{
-          opacity: star,
+          opacity: mark,
           transform: [
             {
-              scale: star.interpolate({
+              scale: mark.interpolate({
                 inputRange: [0, 1],
-                outputRange: [0.3, 1],
-              }),
-            },
-            {
-              rotate: star.interpolate({
-                inputRange: [0, 1],
-                outputRange: ['-135deg', '0deg'],
+                outputRange: [0.85, 1],
               }),
             },
           ],
         }}
       >
-        <Star8
-          size={150}
-          color={onHero.gold}
-          outline
-          borderWidth={2.5}
-          fill="rgba(241,207,116,0.08)"
-        >
-          <Star8
-            size={104}
-            color="rgba(241,207,116,0.6)"
-            outline
-            borderWidth={1}
-            style={styles.inner}
-          />
-          <Text style={styles.noorArabic}>نُور</Text>
-        </Star8>
+        <View style={styles.glow} />
+        <FalaqMark size={170} rise={rise} />
       </Animated.View>
       <Animated.View
         style={[
@@ -99,7 +89,8 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
           },
         ]}
       >
-        <Text style={styles.title}>Noor</Text>
+        <Text style={styles.title}>Falaq</Text>
+        <Text style={styles.arabic}>الْفَلَق</Text>
         <Text style={styles.tagline}>QURAN · PRAYER · DHIKR</Text>
       </Animated.View>
       <Animated.Text style={[styles.bismillah, { opacity: text }]}>
@@ -111,26 +102,29 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
 
 const styles = StyleSheet.create({
   root: { alignItems: 'center', justifyContent: 'center' },
-  inner: { position: 'absolute' },
-  noorArabic: {
-    color: onHero.gold,
-    fontSize: 40,
-    textShadowColor: 'rgba(241,207,116,0.6)',
-    textShadowRadius: 16,
+  glow: {
+    position: 'absolute',
+    left: -40,
+    top: -10,
+    width: 250,
+    height: 250,
+    backgroundImage:
+      'radial-gradient(circle, rgba(255,197,138,0.35) 0%, rgba(255,197,138,0) 65%)',
   },
-  textBox: { alignItems: 'center', marginTop: 28 },
+  textBox: { alignItems: 'center', marginTop: 18 },
   title: {
     color: '#FFFFFF',
     fontSize: 40,
     fontWeight: '900',
     letterSpacing: 2,
   },
+  arabic: { color: onHero.gold, fontSize: 24, marginTop: 2 },
   tagline: {
     color: onHero.soft,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 4,
-    marginTop: 6,
+    marginTop: 8,
   },
   bismillah: {
     position: 'absolute',

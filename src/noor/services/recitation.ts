@@ -60,7 +60,7 @@ export function buildSurahQueue(
       url: ayahAudioUrl(reciterId, 1, 1),
       title: `${info.name} · Bismillah`,
       artist: reciter.name,
-      album: 'Noor · Quran',
+      album: 'Falaq · Quran',
     });
   }
   for (let a = 1; a <= info.ayahs; a++) {
@@ -69,7 +69,7 @@ export function buildSurahQueue(
       url: ayahAudioUrl(reciterId, surah, a),
       title: `${info.name} · Ayah ${a}`,
       artist: reciter.name,
-      album: 'Noor · Quran',
+      album: 'Falaq · Quran',
     });
   }
   // Start on the Bismillah only when beginning the surah from its first ayah.

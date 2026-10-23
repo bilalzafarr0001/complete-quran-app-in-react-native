@@ -110,6 +110,15 @@ describe('Noor screens render without crashing', () => {
     },
   );
 
+  test('the app is branded Falaq everywhere (no old "Noor" name)', async () => {
+    expect(textContent(renderer.root)).not.toMatch(/Noor/);
+    await pressByLabel(renderer.root, 'More');
+    const text = textContent(renderer.root);
+    expect(text).toContain('Falaq · Quran & Prayer');
+    expect(text).toContain('Everything else in Falaq');
+    expect(text).not.toMatch(/Noor/);
+  });
+
   test('opens pushed screens from More', async () => {
     await pressByLabel(renderer.root, 'More');
     for (const [title, expected] of [

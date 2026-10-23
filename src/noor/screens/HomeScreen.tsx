@@ -209,7 +209,7 @@ export function HomeScreen() {
           band={skyBand}
         />
         <Animated.View style={[styles.watermark, starParallax]}>
-          <SpinningStar size={240} color="rgba(241,207,116,0.16)" />
+          <SpinningStar size={240} color="rgba(255,197,138,0.16)" />
         </Animated.View>
 
         <Animated.View
@@ -465,7 +465,7 @@ export function HomeScreen() {
               style={[
                 styles.continue,
                 {
-                  backgroundImage: theme.green3,
+                  backgroundImage: theme.primary3,
                   boxShadow: theme.floatShadow,
                 },
               ]}
@@ -518,7 +518,7 @@ export function HomeScreen() {
           >
             <SpinningStar
               size={160}
-              color="rgba(241,207,116,0.18)"
+              color="rgba(255,197,138,0.18)"
               style={styles.nameStar}
               duration={40000}
             />
@@ -619,7 +619,7 @@ const styles = StyleSheet.create({
     minWidth: 104,
     backgroundColor: 'rgba(0,0,0,0.2)',
     borderWidth: 1,
-    borderColor: 'rgba(241,207,116,0.28)',
+    borderColor: 'rgba(255,197,138,0.28)',
     borderRadius: 18,
     paddingHorizontal: 12,
     paddingVertical: 9,
@@ -652,10 +652,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     borderRadius: 12,
   },
-  miniNow: { backgroundColor: 'rgba(241,207,116,0.2)' },
+  miniNow: { backgroundColor: 'rgba(255,197,138,0.2)' },
   miniNext: {
     borderWidth: 1,
-    borderColor: 'rgba(241,207,116,0.45)',
+    borderColor: 'rgba(255,197,138,0.45)',
     paddingVertical: 5,
     paddingHorizontal: 4,
   },

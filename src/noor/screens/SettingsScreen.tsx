@@ -215,7 +215,7 @@ function Notice({
           <Text style={[styles.rowHint, { color: theme.muted }]}>{body}</Text>
           <PressableScale
             onPress={onAction}
-            style={[styles.noticeBtn, { backgroundImage: theme.green3 }]}
+            style={[styles.noticeBtn, { backgroundImage: theme.primary3 }]}
             accessibilityLabel={action}
           >
             <Text style={styles.noticeBtnText}>{action}</Text>
@@ -238,7 +238,7 @@ function AdhanSettings() {
     const ok = c.settings.enabled || (await c.enable());
     if (!ok) return;
     try {
-      await sendTestAdhan(place, fajr);
+      await sendTestAdhan(place, fajr, c.settings.adhanLength);
       setTestMsg(`${fajr ? 'Fajr adhan' : 'Adhan'} arrives in 5 seconds…`);
     } catch {
       setTestMsg('Could not schedule the test notification.');
@@ -257,7 +257,7 @@ function AdhanSettings() {
             <Text style={[styles.rowHint, { color: theme.muted }]}>
               {on
                 ? `Next 7 days scheduled for ${place.name}. Updates automatically.`
-                : 'Hear the adhan at every prayer time, even when Noor is closed.'}
+                : 'Hear the adhan at every prayer time, even when Falaq is closed.'}
             </Text>
           </View>
           {c.busy ? (
@@ -347,7 +347,7 @@ function AdhanSettings() {
           title="Notifications are blocked"
           body={
             c.error ??
-            'Noor can’t show prayer alerts until notifications are allowed for it.'
+            'Falaq can’t show prayer alerts until notifications are allowed for it.'
           }
           action="Open settings"
           onAction={openNotificationSettings}
@@ -358,10 +358,37 @@ function AdhanSettings() {
         <Notice
           icon="⏰"
           title="Allow exact alarms"
-          body="Turn on “Alarms & reminders” for Noor so the adhan plays exactly on time, even when the phone is asleep."
+          body="Turn on “Alarms & reminders” for Falaq so the adhan plays exactly on time, even when the phone is asleep."
           action="Allow"
           onAction={openExactAlarmSettings}
         />
+      ) : null}
+
+      {on ? (
+        <View style={styles.inline}>
+          <Text
+            maxFontSizeMultiplier={1.3}
+            style={[styles.inlineLabel, { color: theme.muted }]}
+          >
+            ADHAN AT PRAYER TIME
+          </Text>
+          <Segmented<NotifySettings['adhanLength']>
+            value={c.settings.adhanLength}
+            onChange={v => c.updateNotifications({ adhanLength: v })}
+            options={[
+              { value: 'short', label: 'Allahu Akbar' },
+              { value: 'full', label: 'Full adhan' },
+            ]}
+          />
+          <Text
+            maxFontSizeMultiplier={1.3}
+            style={[styles.inlineHint, { color: theme.muted }]}
+          >
+            {c.settings.adhanLength === 'short'
+              ? 'Plays the opening “Allahu Akbar, Allahu Akbar” (about 20 seconds).'
+              : 'Plays the complete adhan (about 3 minutes).'}
+          </Text>
+        </View>
       ) : null}
 
       {on ? (
@@ -798,6 +825,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginLeft: 4,
   },
+  inlineHint: { fontSize: 12.5, marginTop: 8, marginLeft: 4 },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   stepBtn: {
     width: 36,

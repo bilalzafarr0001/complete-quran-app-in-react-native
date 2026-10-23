@@ -113,7 +113,7 @@ function Burst({ trigger, radius }: { trigger: number; radius: number }) {
             style={[
               styles.particle,
               {
-                backgroundColor: i % 2 ? '#F1CF74' : '#2DB386',
+                backgroundColor: i % 2 ? '#FFC58A' : '#EE8FAA',
                 opacity: t.interpolate({
                   inputRange: [0, 0.1, 0.8, 1],
                   outputRange: [0, 1, 1, 0],
@@ -354,7 +354,7 @@ export function TasbeehScreen() {
                     height: core,
                     borderRadius: core / 2,
                     backgroundImage: theme.hero,
-                    boxShadow: `${theme.floatShadow}, inset 0px 0px 0px 3px rgba(241,207,116,0.45)`,
+                    boxShadow: `${theme.floatShadow}, inset 0px 0px 0px 3px rgba(255,197,138,0.45)`,
                     transform: [
                       {
                         scale: press.interpolate({
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 2,
   },
-  chipActiveText: { color: '#2A1E00' },
+  chipActiveText: { color: '#3A1630' },
   counter: {
     alignSelf: 'center',
     marginTop: 24,

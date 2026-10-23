@@ -185,12 +185,12 @@ export function LocationPicker({ onPicked, onDark }: Props) {
           styles.detect,
           onDark
             ? { backgroundImage: theme.gold3 }
-            : { backgroundImage: theme.green3 },
+            : { backgroundImage: theme.primary3 },
         ]}
         accessibilityLabel="Use my current location"
       >
         {status === 'detecting' ? (
-          <Radar color={onDark ? '#2A1E00' : '#FFFFFF'} />
+          <Radar color={onDark ? '#3A1630' : '#FFFFFF'} />
         ) : (
           <Text style={styles.detectIcon}>📍</Text>
         )}
@@ -317,8 +317,8 @@ const styles = StyleSheet.create({
   detectIcon: { fontSize: 24, width: 34, textAlign: 'center' },
   detectTitle: { fontSize: 16, fontWeight: '800' },
   detectSub: { fontSize: 12.5, marginTop: 2 },
-  darkInk: { color: '#2A1E00' },
-  darkInkSoft: { color: 'rgba(42,30,0,0.7)' },
+  darkInk: { color: '#3A1630' },
+  darkInkSoft: { color: 'rgba(58,22,48,0.7)' },
   lightInk: { color: '#FFFFFF' },
   lightInkSoft: { color: 'rgba(255,255,255,0.8)' },
   radarBox: {

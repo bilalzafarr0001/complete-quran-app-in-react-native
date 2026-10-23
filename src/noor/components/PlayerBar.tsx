@@ -120,11 +120,11 @@ export function PlayerBar({ variant, onOpen, bottomInset = 0 }: Props) {
       accessibilityLabel={playing ? 'Pause recitation' : 'Play recitation'}
     >
       {loading ? (
-        <ActivityIndicator color="#2A1E00" />
+        <ActivityIndicator color="#3A1630" />
       ) : playing ? (
-        <PauseIcon size={big ? 18 : 14} color="#2A1E00" />
+        <PauseIcon size={big ? 18 : 14} color="#3A1630" />
       ) : (
-        <PlayIcon size={big ? 18 : 14} color="#2A1E00" />
+        <PlayIcon size={big ? 18 : 14} color="#3A1630" />
       )}
     </PressableScale>
   );
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconOn: { backgroundColor: 'rgba(241,207,116,0.18)' },
+  iconOn: { backgroundColor: 'rgba(255,197,138,0.18)' },
   close: { color: onHero.soft, fontSize: 18, fontWeight: '700' },
   full: {
     position: 'absolute',

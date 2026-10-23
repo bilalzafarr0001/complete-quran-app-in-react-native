@@ -113,7 +113,7 @@ export function TabBar({ tab, onChange }: Props) {
           paddingBottom: Math.max(insets.bottom, 10),
           boxShadow: theme.isDark
             ? '0px -6px 24px rgba(0,0,0,0.5)'
-            : '0px -6px 24px rgba(11,63,47,0.08)',
+            : '0px -6px 24px rgba(58,22,48,0.08)',
         },
       ]}
     >

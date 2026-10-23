@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 2,
     borderRadius: 1,
-    backgroundColor: 'rgba(241,207,116,0.6)',
+    backgroundColor: 'rgba(255,197,138,0.6)',
     marginVertical: 10,
   },
   backMeaning: {

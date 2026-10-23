@@ -124,7 +124,7 @@ export function RamadanCard({
       <StarField count={12} height={170} seed={9} />
       <SpinningStar
         size={170}
-        color="rgba(241,207,116,0.14)"
+        color="rgba(255,197,138,0.14)"
         style={styles.watermark}
       />
       <View style={styles.head}>
@@ -212,8 +212,8 @@ const styles = StyleSheet.create({
     borderColor: onHero.border,
   },
   tileNext: {
-    borderColor: 'rgba(241,207,116,0.75)',
-    backgroundColor: 'rgba(241,207,116,0.12)',
+    borderColor: 'rgba(255,197,138,0.75)',
+    backgroundColor: 'rgba(255,197,138,0.12)',
   },
   tileLabel: {
     color: onHero.soft,

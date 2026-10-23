@@ -413,7 +413,7 @@ export function SurahScreen({
         <StarField count={16} height={260} seed={surah} />
         <SpinningStar
           size={260}
-          color="rgba(241,207,116,0.15)"
+          color="rgba(255,197,138,0.15)"
           style={styles.bannerStar}
         />
         <Star8 size={64} color={onHero.gold} outline borderWidth={2}>
@@ -459,9 +459,9 @@ export function SurahScreen({
               }
             >
               {activeAyah !== null && playing ? (
-                <PauseIcon size={12} color="#2A1E00" />
+                <PauseIcon size={12} color="#3A1630" />
               ) : (
-                <PlayIcon size={12} color="#2A1E00" />
+                <PlayIcon size={12} color="#3A1630" />
               )}
               <Text style={styles.playPillText}>
                 {activeAyah === null
@@ -577,7 +577,7 @@ export function SurahScreen({
                   {data.message}
                 </Text>
                 <PressableScale
-                  style={[styles.retry, { backgroundImage: theme.green3 }]}
+                  style={[styles.retry, { backgroundImage: theme.primary3 }]}
                   onPress={data.retry}
                   accessibilityLabel="Try again"
                 >
@@ -714,7 +714,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
   },
-  playPillText: { color: '#2A1E00', fontWeight: '900', fontSize: 14 },
+  playPillText: { color: '#3A1630', fontWeight: '900', fontSize: 14 },
   playError: { color: '#FFD7D7', fontSize: 12.5, marginTop: 8 },
   reciting: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4 },
   recitingText: { fontSize: 11, fontWeight: '900' },

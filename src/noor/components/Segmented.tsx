@@ -58,7 +58,7 @@ export function Segmented<T extends string | number>({
             styles.thumb,
             {
               width: itemWidth,
-              backgroundImage: onDark ? theme.gold3 : theme.green3,
+              backgroundImage: onDark ? theme.gold3 : theme.primary3,
               transform: [
                 {
                   translateX: pos.interpolate({
@@ -85,7 +85,7 @@ export function Segmented<T extends string | number>({
               numberOfLines={1}
               style={[
                 styles.label,
-                { color: active ? (onDark ? '#2A1E00' : '#FFFFFF') : idle },
+                { color: active ? (onDark ? '#3A1630' : '#FFFFFF') : idle },
               ]}
             >
               {o.label}

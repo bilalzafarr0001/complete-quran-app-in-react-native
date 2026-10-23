@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     borderColor: onHero.border,
   },
   chipText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
-  chipTextActive: { color: '#2A1E00' },
+  chipTextActive: { color: '#3A1630' },
   list: { paddingHorizontal: 16, paddingBottom: 30 },
   card: { borderRadius: 22, padding: 18, marginBottom: 12 },
   cardHead: { flexDirection: 'row', alignItems: 'center' },

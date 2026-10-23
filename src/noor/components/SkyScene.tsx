@@ -32,11 +32,11 @@ const SKIES: Record<DayPhase, Sky> = {
     birds: 'rgba(24,18,46,0.7)',
   },
   day: {
-    tint: 'linear-gradient(180deg, rgba(64,176,214,0.26) 0%, rgba(64,176,214,0) 65%)',
+    tint: 'linear-gradient(180deg, rgba(255,214,170,0.18) 0%, rgba(255,214,170,0) 65%)',
     stars: 0,
     sun: 'arc',
     clouds: 'rgba(255,255,255,',
-    birds: 'rgba(3,28,20,0.6)',
+    birds: 'rgba(40,10,28,0.55)',
   },
   afternoon: {
     tint: 'linear-gradient(180deg, rgba(255,214,140,0.1) 0%, rgba(236,164,64,0.32) 100%)',
@@ -198,7 +198,7 @@ function Moon({
       <Crescent
         size={MOON}
         color={onHero.gold}
-        glow="0px 0px 16px rgba(241,207,116,0.5)"
+        glow="0px 0px 16px rgba(255,197,138,0.5)"
       />
     </Animated.View>
   );
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     backgroundImage:
-      'radial-gradient(circle, rgba(241,207,116,0.3) 0%, rgba(241,207,116,0) 70%)',
+      'radial-gradient(circle, rgba(255,197,138,0.3) 0%, rgba(255,197,138,0) 70%)',
   },
   cloud: { position: 'absolute', left: 0 },
   puff: { position: 'absolute' },

@@ -153,8 +153,8 @@ function SunArc({
         ) : (
           <Crescent
             size={ORB}
-            color="#F7E7B4"
-            glow="0px 0px 14px rgba(247,231,180,0.6)"
+            color="#FFE2C4"
+            glow="0px 0px 14px rgba(255,226,196,0.6)"
           />
         )}
       </Animated.View>
@@ -530,7 +530,7 @@ export function PrayerScreen() {
                 style={[
                   styles.adhanBanner,
                   {
-                    backgroundImage: theme.green3,
+                    backgroundImage: theme.primary3,
                     boxShadow: theme.floatShadow,
                   },
                 ]}
@@ -543,7 +543,7 @@ export function PrayerScreen() {
                   </Text>
                   <Text style={styles.adhanBody}>
                     {adhan.error ??
-                      'Full adhan (special Fajr adhan) on time, even when Noor is closed.'}
+                      'Allahu Akbar on time (or the full adhan), even when Falaq is closed.'}
                   </Text>
                 </View>
                 <View style={styles.adhanBtn}>
@@ -572,7 +572,7 @@ export function PrayerScreen() {
                         boxShadow: theme.cardShadow,
                       },
                       isNext && {
-                        backgroundImage: theme.green3,
+                        backgroundImage: theme.primary3,
                         boxShadow: theme.floatShadow,
                       },
                     ]}
@@ -757,7 +757,7 @@ const styles = StyleSheet.create({
   arc: {
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: 'rgba(241,207,116,0.45)',
+    borderColor: 'rgba(255,197,138,0.45)',
   },
   horizon: { height: 1, backgroundColor: 'rgba(255,255,255,0.25)' },
   orb: {
@@ -856,7 +856,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkMark: { color: '#2A1E00', fontWeight: '900', fontSize: 15 },
+  checkMark: { color: '#3A1630', fontWeight: '900', fontSize: 15 },
   checkSpacer: { width: 30 },
   alertBtn: {
     width: 34,

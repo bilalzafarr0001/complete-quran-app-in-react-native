@@ -55,7 +55,7 @@ export function ScreenHeader({
       <StarField count={14} height={200} seed={title.length * 13} />
       <SpinningStar
         size={190}
-        color="rgba(241,207,116,0.18)"
+        color="rgba(255,197,138,0.18)"
         style={styles.watermark}
       />
       <View style={[contentColumn, isTablet && styles.tabletInset]}>

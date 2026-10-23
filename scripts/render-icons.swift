@@ -1,4 +1,4 @@
-// Renders the Noor app icon + splash assets with CoreGraphics.
+// Renders the Falaq app icon + splash assets with CoreGraphics.
 // Usage: swift render.swift <outputDir>
 import CoreGraphics
 import Foundation
@@ -12,101 +12,85 @@ func rgb(_ hex: UInt32, _ a: CGFloat = 1) -> CGColor {
             blue: CGFloat(hex & 0xFF) / 255, alpha: a)
 }
 
-let GOLD_LIGHT = rgb(0xF3D98B), GOLD = rgb(0xD4AA3A), GOLD_DARK = rgb(0xB8891E)
+// Falaq palette: a dawn sky from plum to apricot, cream and peach-gold accents.
+let PLUM = rgb(0x3A1630), ROSE = rgb(0x8E3457), APRICOT = rgb(0xE07B53)
+let CREAM = rgb(0xFFF1E4), PEACH_LIGHT = rgb(0xFFD9AE), PEACH = rgb(0xFFC58A), PEACH_DEEP = rgb(0xF4A26B)
 
 enum Shape { case square, rounded, circle }
+/// Which parts of the mark to draw (the app's splash animates the sun separately).
+enum Parts { case all, arch, sun }
 
-/// Draws the emerald gradient background over the whole canvas.
+/// Draws the dawn gradient (plum at the top → apricot at the bottom) over the canvas.
 func drawBackground(_ c: CGContext, _ s: CGFloat) {
     let space = CGColorSpace(name: CGColorSpace.sRGB)!
-    let g = CGGradient(colorsSpace: space,
-                       colors: [rgb(0x06301F), rgb(0x0B5A40), rgb(0x13805C)] as CFArray,
-                       locations: [0, 0.55, 1])!
-    // ~160deg CSS gradient: top-left → bottom-right, slightly vertical.
-    c.drawLinearGradient(g, start: CGPoint(x: s * 0.2, y: s), end: CGPoint(x: s * 0.8, y: 0),
+    let g = CGGradient(colorsSpace: space, colors: [PLUM, ROSE, APRICOT] as CFArray, locations: [0, 0.6, 1])!
+    // CoreGraphics is y-up: start at the top edge, end at the bottom.
+    c.drawLinearGradient(g, start: CGPoint(x: s * 0.45, y: s), end: CGPoint(x: s * 0.55, y: 0),
                          options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
-    // Soft glow behind the emblem.
-    let glow = CGGradient(colorsSpace: space, colors: [rgb(0xF1CF74, 0.22), rgb(0xF1CF74, 0)] as CFArray, locations: [0, 1])!
-    c.drawRadialGradient(glow, startCenter: CGPoint(x: s / 2, y: s / 2), startRadius: 0,
-                         endCenter: CGPoint(x: s / 2, y: s / 2), endRadius: s * 0.42, options: [])
+    // Soft light rising from the horizon behind the mark.
+    let glow = CGGradient(colorsSpace: space, colors: [rgb(0xFFC58A, 0.30), rgb(0xFFC58A, 0)] as CFArray, locations: [0, 1])!
+    c.drawRadialGradient(glow, startCenter: CGPoint(x: s / 2, y: s * 0.3), startRadius: 0,
+                         endCenter: CGPoint(x: s / 2, y: s * 0.3), endRadius: s * 0.5, options: [])
 }
 
-/// Outline of an eight-pointed star (Rub el Hizb): 8 outer points, 8 inner corners.
-func starPath(center: CGPoint, size: CGFloat) -> CGPath {
-    let outer = size / 2
-    let half = outer / sqrt(2)                   // half-side of each square
-    let inner = half / cos(CGFloat.pi / 8)       // where the two squares cross
-    let p = CGMutablePath()
-    for i in 0..<16 {
-        let angle = CGFloat(i) * CGFloat.pi / 8 - CGFloat.pi / 2
-        let r = i % 2 == 0 ? outer : inner
-        let pt = CGPoint(x: center.x + r * cos(angle), y: center.y + r * sin(angle))
-        if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
-    }
-    p.closeSubpath()
-    return p
-}
-
-/// The emblem: gold star outline, inner star, crescent and a small star.
-/// `scale` = emblem size relative to the canvas; `mono` draws solid white (themed icons).
-func drawEmblem(_ c: CGContext, _ s: CGFloat, scale: CGFloat, mono: Bool = false) {
+/// The Falaq mark: the sun rising inside an arch, drawn on a 120-unit design grid
+/// (the mark spans x 22–98, y 22–90; its centre (60, 56) sits on the canvas centre).
+/// `scale` = mark width relative to the canvas; `mono` draws solid white (themed icons).
+func drawEmblem(_ c: CGContext, _ s: CGFloat, scale: CGFloat, mono: Bool = false, parts: Parts = .all) {
     let center = CGPoint(x: s / 2, y: s / 2)
-    let size = s * scale
+    let f = s * scale / 76
+    func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: center.x + (x - 60) * f, y: center.y - (y - 56) * f) }
     let space = CGColorSpace(name: CGColorSpace.sRGB)!
-    let goldGradient = CGGradient(colorsSpace: space, colors: [GOLD_LIGHT, GOLD, GOLD_DARK] as CFArray, locations: [0, 0.5, 1])!
 
-    func fillGold(_ path: CGPath, evenOdd: Bool = false) {
+    func fill(_ path: CGPath, _ color: CGColor, gradient: CGGradient? = nil) {
         c.saveGState()
         c.addPath(path)
-        if mono {
-            c.setFillColor(rgb(0xFFFFFF))
-            c.fillPath(using: evenOdd ? .evenOdd : .winding)
+        if mono || gradient == nil {
+            c.setFillColor(mono ? rgb(0xFFFFFF) : color)
+            c.fillPath()
         } else {
-            c.clip(using: evenOdd ? .evenOdd : .winding)
+            c.clip()
             let b = path.boundingBox
-            c.drawLinearGradient(goldGradient, start: CGPoint(x: b.minX, y: b.maxY), end: CGPoint(x: b.maxX, y: b.minY), options: [])
+            c.drawLinearGradient(gradient!, start: CGPoint(x: b.midX, y: b.maxY), end: CGPoint(x: b.midX, y: b.minY), options: [])
         }
         c.restoreGState()
     }
 
-    // Outer star: thick gold outline (stroked → filled outline for gradient).
-    let outer = starPath(center: center, size: size)
-    let outerStroke = outer.copy(strokingWithWidth: size * 0.055, lineCap: .round, lineJoin: .round, miterLimit: 4)
-    fillGold(outerStroke)
-
-    // Inner star: thin outline.
-    if !mono {
-        let inner = starPath(center: center, size: size * 0.74)
+    if parts != .arch {
+        // Sun: clipped at the horizon in the icon; whole in the splash layer (it rises).
         c.saveGState()
-        c.addPath(inner)
-        c.setStrokeColor(rgb(0xF1CF74, 0.45))
-        c.setLineWidth(size * 0.018)
-        c.strokePath()
+        if parts == .all { c.clip(to: CGRect(x: 0, y: p(0, 88).y, width: s, height: s)) }
+        let r = 19 * f
+        let sun = CGPath(ellipseIn: CGRect(x: p(60, 88).x - r, y: p(60, 88).y - r, width: r * 2, height: r * 2), transform: nil)
+        let sunGradient = CGGradient(colorsSpace: space, colors: [PEACH_LIGHT, PEACH, PEACH_DEEP] as CFArray, locations: [0, 0.5, 1])!
+        fill(sun, PEACH, gradient: sunGradient)
+        let rays = CGMutablePath()
+        for (a, b) in [((60, 60), (60, 52)), ((40, 68), (35, 62)), ((80, 68), (85, 62)), ((40, 81), (35.5, 79.5)), ((80, 81), (84.5, 79.5))] {
+            rays.move(to: p(CGFloat(a.0), CGFloat(a.1)))
+            rays.addLine(to: p(CGFloat(b.0), CGFloat(b.1)))
+        }
+        fill(rays.copy(strokingWithWidth: 3 * f, lineCap: .round, lineJoin: .round, miterLimit: 4), PEACH)
         c.restoreGState()
     }
 
-    // Crescent: big disc minus offset disc (even-odd).
-    let R = size * 0.2
-    let crescent = CGMutablePath()
-    let cc = CGPoint(x: center.x - size * 0.02, y: center.y)
-    crescent.addEllipse(in: CGRect(x: cc.x - R, y: cc.y - R, width: R * 2, height: R * 2))
-    let r2 = R * 0.84
-    let oc = CGPoint(x: cc.x + R * 0.42, y: cc.y + R * 0.16)
-    crescent.addEllipse(in: CGRect(x: oc.x - r2, y: oc.y - r2, width: r2 * 2, height: r2 * 2))
-    // Clip to the big disc so only the crescent (no sliver of the cut-out) remains.
-    c.saveGState()
-    c.addEllipse(in: CGRect(x: cc.x - R, y: cc.y - R, width: R * 2, height: R * 2))
-    c.clip()
-    fillGold(crescent, evenOdd: true)
-    c.restoreGState()
-
-    // Small star inside the crescent's opening.
-    let small = starPath(center: CGPoint(x: center.x + size * 0.12, y: center.y + size * 0.06), size: size * 0.11)
-    fillGold(small)
+    if parts != .sun {
+        // Pointed arch (mihrab) and the horizon line.
+        let arch = CGMutablePath()
+        arch.move(to: p(30, 88))
+        arch.addLine(to: p(30, 58))
+        arch.addQuadCurve(to: p(60, 22), control: p(30, 34))
+        arch.addQuadCurve(to: p(90, 58), control: p(90, 34))
+        arch.addLine(to: p(90, 88))
+        fill(arch.copy(strokingWithWidth: 5 * f, lineCap: .butt, lineJoin: .round, miterLimit: 4), CREAM)
+        let horizon = CGMutablePath()
+        horizon.move(to: p(22, 88))
+        horizon.addLine(to: p(98, 88))
+        fill(horizon.copy(strokingWithWidth: 5 * f, lineCap: .round, lineJoin: .round, miterLimit: 4), CREAM)
+    }
 }
 
 func render(_ name: String, size: Int, background: Bool, emblemScale: CGFloat, shape: Shape = .square,
-            mono: Bool = false, opaque: Bool = false) {
+            mono: Bool = false, opaque: Bool = false, parts: Parts = .all) {
     let s = CGFloat(size)
     let space = CGColorSpace(name: CGColorSpace.sRGB)!
     let ctx = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0, space: space,
@@ -123,7 +107,7 @@ func render(_ name: String, size: Int, background: Bool, emblemScale: CGFloat, s
         ctx.clip()
     }
     if background { drawBackground(ctx, s) }
-    if emblemScale > 0 { drawEmblem(ctx, s, scale: emblemScale, mono: mono) }
+    if emblemScale > 0 { drawEmblem(ctx, s, scale: emblemScale, mono: mono, parts: parts) }
     let image = ctx.makeImage()!
     let url = URL(fileURLWithPath: out).appendingPathComponent(name)
     try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -154,5 +138,10 @@ for px in [40, 58, 60, 80, 87, 120, 180, 1024] {
 }
 for (suffix, k) in [("", 1), ("@2x", 2), ("@3x", 3)] {
     render("ios/SplashIcon.imageset/splash\(suffix).png", size: Int(160 * CGFloat(k)), background: false, emblemScale: 0.8)
+}
+// ---------- In-app splash layers (the sun rises behind the arch) ----------
+for (suffix, k) in [("", 1), ("@2x", 2), ("@3x", 3)] {
+    render("app/falaq-arch\(suffix).png", size: Int(160 * CGFloat(k)), background: false, emblemScale: 0.9, parts: .arch)
+    render("app/falaq-sun\(suffix).png", size: Int(160 * CGFloat(k)), background: false, emblemScale: 0.9, parts: .sun)
 }
 print("done")

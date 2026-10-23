@@ -13,14 +13,18 @@ import { readJson, writeJson } from './services/storage';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 export type AlertMode = 'adhan' | 'beep' | 'off';
+/** Short = only the opening "Allahu Akbar, Allahu Akbar"; full = the whole adhan. */
+export type AdhanLength = 'short' | 'full';
 export type SalahKey = 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
 export type RepeatSetting = 'off' | 'ayah' | 'surah';
 
 export type NotifySettings = {
   /** Master switch (also means permission was granted). */
   enabled: boolean;
-  /** Per-prayer alert: full adhan, short sound, or nothing. */
+  /** Per-prayer alert: adhan, short sound, or nothing. */
   modes: Record<SalahKey, AlertMode>;
+  /** How much of the adhan plays at prayer time. */
+  adhanLength: AdhanLength;
   /** Heads-up this many minutes before each prayer (0 = off). */
   reminderMinutes: 0 | 10 | 15 | 30;
   /** Ramadan: remind this many minutes before Sehri ends (0 = off). */
@@ -84,6 +88,7 @@ const INITIAL: AppState = {
       maghrib: 'adhan',
       isha: 'adhan',
     },
+    adhanLength: 'short',
     reminderMinutes: 0,
     sehriMinutes: 0,
     sunrise: false,
