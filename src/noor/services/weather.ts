@@ -3,28 +3,33 @@ import type { Forecast } from '../logic/weather';
 import { fetchJson } from './http';
 import { readJson, writeJson } from './storage';
 
-const CACHE_KEY = 'noor:weather:v2';
+const CACHE_KEY = 'noor:weather:v3';
 
 type OpenMeteoForecast = {
-  hourly?: { time?: string[]; weather_code?: (number | null)[] };
+  hourly?: {
+    time?: string[];
+    weather_code?: (number | null)[];
+    cloud_cover?: (number | null)[];
+  };
 };
 
 type Cached = { lat: number; lng: number; at: number; forecast: Forecast };
 
 /**
- * Hourly weather conditions from yesterday to the day after tomorrow at a
- * place (free Open-Meteo API, no key), in the place's own local time.
+ * Hourly weather from yesterday to the day after tomorrow at a place (free
+ * Open-Meteo API, no key), in the place's own local time: the condition and
+ * how cloudy it is.
  */
 export async function fetchForecast(place: Place): Promise<Forecast> {
   const zone = encodeURIComponent(place.timeZone ?? 'auto');
   const r = await fetchJson<OpenMeteoForecast>(
-    `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lng}&hourly=weather_code&timezone=${zone}&past_days=1&forecast_days=3`,
+    `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lng}&hourly=weather_code,cloud_cover&timezone=${zone}&past_days=1&forecast_days=3`,
   );
   const h = r.hourly;
   if (!h?.time?.length || !h.weather_code?.length) {
     throw new Error('No forecast in the response');
   }
-  return { time: h.time, code: h.weather_code };
+  return { time: h.time, code: h.weather_code, cloud: h.cloud_cover };
 }
 
 const samePlace = (c: Cached, place: Place) =>

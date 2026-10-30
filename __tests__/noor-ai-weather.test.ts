@@ -8,7 +8,12 @@ import {
   recentHistory,
 } from '../src/noor/logic/assistant';
 import { isRtl, parseInline, parseMarkdown } from '../src/noor/logic/markdown';
-import { forecastAt, skyWeather } from '../src/noor/logic/weather';
+import {
+  cloudiness,
+  forecastAt,
+  skyWeather,
+  sunshine,
+} from '../src/noor/logic/weather';
 import { ChatError, streamChat } from '../src/noor/services/assistant';
 import { fetchForecast } from '../src/noor/services/weather';
 import type { Place } from '../src/noor/data/places';
@@ -42,20 +47,59 @@ describe('weather → sky', () => {
       '2026-10-30T16:00',
     ],
     code: [3, 0, 61, null],
+    cloud: [96, 4, 100, 50],
   };
   const day = { y: 2026, m: 10, d: 30 };
 
   test('a prayer gets the forecast for its nearest hour', () => {
-    expect(forecastAt(forecast, day, 15.4)).toBe('rain'); // 3:24 PM → 15:00
-    expect(forecastAt(forecast, day, 0.2)).toBe('clear');
+    // 3:24 PM → 15:00
+    expect(forecastAt(forecast, day, 15.4)).toEqual({
+      weather: 'rain',
+      cloud: 100,
+    });
+    expect(forecastAt(forecast, day, 0.2)?.weather).toBe('clear');
     // Before midnight (Isha of the day before).
-    expect(forecastAt(forecast, day, -0.8)).toBe('cloudy');
+    expect(forecastAt(forecast, day, -0.8)?.weather).toBe('cloudy');
     // No data, or not in the forecast.
     expect(forecastAt(forecast, day, 15.6)).toBeNull();
     expect(forecastAt(forecast, day, 9)).toBeNull();
+    // Older saved forecasts without cloud cover still work.
+    expect(
+      forecastAt({ time: forecast.time, code: forecast.code }, day, 0.2),
+    ).toEqual({ weather: 'clear', cloud: null });
   });
 
-  test('fetches only weather conditions (no temperature) in local time', async () => {
+  test('how much cloud to draw follows the cloud cover', () => {
+    const at = (
+      weather: 'clear' | 'partly' | 'cloudy' | 'rain',
+      c: number | null,
+    ) => cloudiness({ weather, cloud: c });
+    expect(at('partly', 10)).toBe(0.1);
+    expect(at('partly', 60)).toBe(0.6);
+    expect(at('cloudy', 100)).toBe(1);
+    expect(at('clear', 140)).toBe(1); // clamped
+    // Unknown cover: a typical amount for that kind of sky.
+    expect(at('clear', null)).toBeLessThan(0.1);
+    expect(at('cloudy', null)).toBeGreaterThan(0.8);
+  });
+
+  test('sunny skies (clear, little cloud) get the warm sunny look', () => {
+    const at = (
+      weather: 'clear' | 'partly' | 'cloudy' | 'rain' | 'fog',
+      c: number | null,
+    ) => sunshine({ weather, cloud: c });
+    expect(at('clear', 0)).toBe(1);
+    expect(at('clear', 30)).toBeCloseTo(0.5);
+    expect(at('partly', 45)).toBeCloseTo(0.25);
+    expect(at('partly', 70)).toBe(0);
+    expect(at('cloudy', 0)).toBe(0); // the code says overcast
+    expect(at('rain', 0)).toBe(0);
+    expect(at('fog', 0)).toBe(0);
+    expect(at('clear', null)).toBeGreaterThan(0.9); // no cover: mostly clear
+    expect(sunshine(null)).toBe(0); // no forecast: the usual sky
+  });
+
+  test('fetches conditions and cloud cover (nothing else) in local time', async () => {
     const lahore: Place = {
       name: 'Lahore',
       country: 'Pakistan',
@@ -70,16 +114,24 @@ describe('weather → sky', () => {
     fetchMock.mockImplementationOnce(async () => ({
       ok: true,
       json: async () => ({
-        hourly: { time: ['2026-10-30T15:00'], weather_code: [0] },
+        hourly: {
+          time: ['2026-10-30T15:00'],
+          weather_code: [0],
+          cloud_cover: [5],
+        },
       }),
     }));
     const f = await fetchForecast(lahore);
     const url = String(fetchMock.mock.calls.at(-1)[0]);
     expect(url).toContain('latitude=31.52&longitude=74.36');
-    expect(url).toContain('hourly=weather_code&');
+    expect(url).toContain('hourly=weather_code,cloud_cover&');
     expect(url).toContain('timezone=Asia%2FKarachi');
     expect(url).not.toContain('temperature');
-    expect(f).toEqual({ time: ['2026-10-30T15:00'], code: [0] });
+    expect(f).toEqual({
+      time: ['2026-10-30T15:00'],
+      code: [0],
+      cloud: [5],
+    });
 
     fetchMock.mockImplementationOnce(async () => ({
       ok: true,

@@ -766,6 +766,13 @@ const LOOKS: Record<SkyWeather, Look> = {
   },
 };
 
+/** The Five Skies design's sky (option E): burnt orange to rose to plum. */
+const SUNNY_SKY =
+  'linear-gradient(180deg, #9E3F1E 0%, #C4602F 34%, #A2445A 62%, #3A1630 100%)';
+
+/** Clouds after dark (when the forecast says there are some). */
+const NIGHT_CLOUD = 'rgba(186,182,212,';
+
 /** Where each cloud drifts (in order of appearance as the sky clouds over). */
 const CLOUD_SLOTS: {
   /** Vertical place: in the open band, or by the title (over the sun). */
@@ -796,6 +803,8 @@ export const SkyScene = memo(function SkySceneInner({
   band,
   title = null,
   weather = null,
+  cloud = null,
+  sunny = 0,
   still = false,
 }: {
   phase: DayPhase;
@@ -807,27 +816,59 @@ export const SkyScene = memo(function SkySceneInner({
   title?: SkyBand | null;
   /** Forecast for this prayer's time (null = no data: the usual sky). */
   weather?: SkyWeather | null;
+  /** 0–1: how cloudy the sky is (null = no data). */
+  cloud?: number | null;
+  /** 0–1: how sunny; sunny days take on the Five Skies design's warm sky. */
+  sunny?: number;
   /** Hold the scene still (e.g. while it is off-screen). */
   still?: boolean;
 }) {
   const reduceMotion = useReduceMotion();
   const reduce = reduceMotion || still;
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const fade = useRef(new Animated.Value(0)).current;
+  const appear = useRef(new Animated.Value(0)).current;
   const sky = SKIES[phase];
   const look = LOOKS[weather ?? 'partly'];
   const night = phase !== 'day' && phase !== 'afternoon';
+  // With a forecast, the amount of cloud follows the hour's cloud cover
+  // (rain, snow, storms and fog keep their own heavy skies).
+  const wet = !!look.precip || !!look.haze;
+  const cover = weather && cloud !== null && !wet ? cloud : null;
+  const heavy = cover === null ? !!look.overcast : cover >= 0.75;
+  const overcast = look.overcast ?? (heavy ? LOOKS.cloudy.overcast : undefined);
+  const cloudCount =
+    cover === null ? look.clouds : Math.round(cover * CLOUD_SLOTS.length);
+  const fade = (from: number, floor: number) =>
+    cover === null || cover < from
+      ? 1
+      : Math.max(floor, 1 - ((cover - from) / (1 - from)) * (1 - floor));
+  const sunVisible = cover === null ? look.sun : fade(0.5, 0.4);
+  const moonVisible = cover === null ? look.moon : fade(0.5, 0.45);
+  const starsVisible =
+    cover === null ? look.stars : Math.max(0, 1 - cover * 1.25);
+  const veil =
+    cover === null
+      ? look.veil
+      : cover >= 0.6
+      ? `linear-gradient(180deg, rgba(56,58,80,${(
+          0.38 *
+          ((cover - 0.6) / 0.4)
+        ).toFixed(2)}) 0%, rgba(56,58,80,${(
+          0.13 *
+          ((cover - 0.6) / 0.4)
+        ).toFixed(2)}) 100%)`
+      : undefined;
 
   // Cross-fade into the new sky when the time of day changes.
   useEffect(() => {
-    fade.setValue(0);
-    Animated.timing(fade, {
+    appear.setValue(0);
+    Animated.timing(appear, {
       toValue: 1,
       duration: 1400,
       easing: EASE_OUT,
       useNativeDriver: true,
     }).start();
-  }, [phase, fade]);
+  }, [phase, appear]);
 
   const { w, h } = size;
   const bt = band?.top ?? 0;
@@ -858,8 +899,11 @@ export const SkyScene = memo(function SkySceneInner({
     high: bt - 70,
     low: head.top + head.height + 30,
   };
-  const cloudColor = look.overcast ? look.overcast[night ? 1 : 0] : sky.clouds;
-  const clouds = cloudColor ? CLOUD_SLOTS.slice(0, look.clouds) : [];
+  const cloudColor = overcast
+    ? overcast[night ? 1 : 0]
+    : sky.clouds ?? (cover !== null ? NIGHT_CLOUD : undefined);
+  const clouds = cloudColor ? CLOUD_SLOTS.slice(0, cloudCount) : [];
+  const density = cover !== null ? 1 + cover * 0.9 : look.overcast ? 1.8 : 1;
 
   return (
     <View
@@ -872,16 +916,18 @@ export const SkyScene = memo(function SkySceneInner({
         })
       }
     >
-      <Animated.View style={[abs, { opacity: fade }]}>
+      <Animated.View style={[abs, { opacity: appear }]}>
         <View style={[abs, { backgroundImage: sky.tint }]} />
         {sky.horizon ? (
           <View style={[abs, { backgroundImage: sky.horizon }]} />
         ) : null}
-        {look.veil ? (
-          <View style={[abs, { backgroundImage: look.veil }]} />
+        {sky.sun === 'arc' && sunny ? (
+          // A sunny day: the warm sky of the Five Skies design.
+          <View style={[abs, { backgroundImage: SUNNY_SKY, opacity: sunny }]} />
         ) : null}
-        {sky.stars * look.stars && h ? (
-          <View style={[abs, { opacity: sky.stars * look.stars }]}>
+        {veil ? <View style={[abs, { backgroundImage: veil }]} /> : null}
+        {sky.stars * starsVisible && h ? (
+          <View style={[abs, { opacity: sky.stars * starsVisible }]}>
             {/* Stars stay in the open sky, above the text (on a tall scene
                 a dot over a word reads like a typo). */}
             <StarField
@@ -894,23 +940,23 @@ export const SkyScene = memo(function SkySceneInner({
         ) : null}
         {w && band ? (
           <>
-            {sky.sun && look.sun ? (
+            {sky.sun && sunVisible ? (
               <Sun
                 x={sunPos.x}
                 y={sunPos.y}
                 size={sky.sun === 'arc' ? disc : Math.max(300, disc * 1.7)}
                 low={sky.sun !== 'arc'}
                 warm={phase === 'afternoon'}
-                opacity={look.sun}
+                opacity={sunVisible}
                 animate={!reduce}
               />
             ) : null}
-            {sky.moon && look.moon ? (
+            {sky.moon && moonVisible ? (
               <Moon
                 x={w - disc * 0.3}
                 y={head.top + head.height * 0.25}
                 size={disc}
-                opacity={sky.moon * look.moon}
+                opacity={sky.moon * moonVisible}
                 animate={!reduce}
               />
             ) : null}
@@ -924,7 +970,7 @@ export const SkyScene = memo(function SkySceneInner({
                 offset={c.offset}
                 sceneWidth={w}
                 animate={!reduce}
-                density={look.overcast ? 1.8 : 1}
+                density={density}
               />
             ))}
             {look.haze ? <View style={[abs, styles.haze]} /> : null}

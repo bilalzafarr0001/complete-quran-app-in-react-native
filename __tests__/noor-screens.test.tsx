@@ -478,34 +478,51 @@ describe('the sky follows the live weather', () => {
     );
   });
 
-  /** The weather each prayer page's sky is painted with, by phase. */
-  const skies = () => {
-    const out: Record<string, unknown> = {};
+  /** What each prayer page's sky is painted with, by phase. */
+  const scenes = () => {
+    const out: Record<
+      string,
+      { weather: unknown; cloud: unknown; sunny: unknown }
+    > = {};
     for (const n of root().findAll(
       x => typeof x.props.phase === 'string' && 'weather' in x.props,
     )) {
-      out[n.props.phase] = n.props.weather;
+      const { weather, cloud, sunny } = n.props;
+      out[n.props.phase] = { weather, cloud, sunny };
     }
     return out;
   };
+  const skies = () =>
+    Object.fromEntries(
+      Object.entries(scenes()).map(([phase, v]) => [phase, v.weather]),
+    );
 
   test('each prayer gets the forecast for its time; no temperature is shown', async () => {
     // Makkah, Wednesday 28 October (hourly, local time).
     const time: string[] = [];
     const code: number[] = [];
+    const cloud: number[] = [];
     for (let h = 0; h < 24; h++) {
       time.push(`2026-10-28T${h < 10 ? '0' : ''}${h}:00`);
-      // Fajr ~5:01 clear, Dhuhr ~12:05 partly cloudy, now (16:30 → 17:00)
-      // rain, Maghrib ~5:47 PM (18:00) overcast, Isha ~7:17 PM storm.
+      // Fajr ~5:01 clear, Dhuhr ~12:05 partly cloudy (30%), now
+      // (16:30 → 17:00) rain, Maghrib ~5:47 PM (18:00) overcast, Isha
+      // ~7:17 PM storm.
       code.push(
         h === 12 ? 2 : h === 17 ? 63 : h === 18 ? 3 : h === 19 ? 95 : 0,
       );
+      cloud.push(h === 12 ? 30 : h === 18 ? 92 : h === 5 ? 0 : 100);
     }
     fetchMock.mockImplementation(async (url: string) =>
       url.includes('api.open-meteo.com/v1/forecast')
         ? {
             ok: true,
-            json: async () => ({ hourly: { time, weather_code: code } }),
+            json: async () => ({
+              hourly: {
+                time,
+                weather_code: code,
+                cloud_cover: cloud,
+              },
+            }),
           }
         : Promise.reject(new Error('offline (test)')),
     );
@@ -519,6 +536,13 @@ describe('the sky follows the live weather', () => {
       dusk: 'cloudy',
       night: 'storm',
     });
+    const s = scenes();
+    // The clouds follow the cloud cover; a sunny Dhuhr gets the warm look.
+    expect(s.day.weather).toBe('partly');
+    expect(s.day.cloud).toBe(0.3);
+    expect(s.day.sunny).toBeCloseTo(0.5);
+    expect(s.dusk).toMatchObject({ cloud: 0.92, sunny: 0 });
+    expect(s.afternoon).toMatchObject({ weather: 'rain', sunny: 0 });
     const text = textContent(root());
     expect(text).not.toMatch(/°|Rain|Cloudy|Thunderstorm/);
     expect(

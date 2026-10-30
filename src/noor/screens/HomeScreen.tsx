@@ -49,7 +49,7 @@ import {
   prayerPages,
   Salah,
 } from '../logic/skies';
-import { forecastAt, SkyWeather } from '../logic/weather';
+import { cloudiness, forecastAt, SkyNow, sunshine } from '../logic/weather';
 import { Route, useNav } from '../navigation/nav';
 import { openNotificationSettings } from '../services/adhan';
 import { useStore } from '../store';
@@ -242,7 +242,7 @@ function PrayerSky({
   alert: AlertInfo;
   alertError: string | null;
   /** The sky the forecast calls for at this prayer's time (null = unknown). */
-  weather: SkyWeather | null;
+  weather: SkyNow | null;
   onTogglePrayed: () => void;
   onElapsed: () => void;
 }) {
@@ -300,7 +300,9 @@ function PrayerSky({
         sun={sunProgress(state === 'now' ? hours : page.time, today)}
         band={band}
         title={title}
-        weather={weather}
+        weather={weather?.weather ?? null}
+        cloud={weather ? cloudiness(weather) : null}
+        sunny={sunshine(weather)}
         still={!active}
       />
 
@@ -475,7 +477,7 @@ export function HomeScreen() {
   const pages = prayerPages(date, now.hours, today, status);
   const forecast = useWeather(place);
   /** The sky at a page's prayer time (right now, for the current one). */
-  const weatherOf = (p: PrayerPage): SkyWeather | null =>
+  const weatherOf = (p: PrayerPage): SkyNow | null =>
     forecast
       ? p.state === 'now'
         ? forecastAt(forecast, date, now.hours)
