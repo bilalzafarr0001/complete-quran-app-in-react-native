@@ -770,6 +770,49 @@ const LOOKS: Record<SkyWeather, Look> = {
 const SUNNY_SKY =
   'linear-gradient(180deg, #9E3F1E 0%, #C4602F 34%, #A2445A 62%, #3A1630 100%)';
 
+const sky4 = (a: string, b: string, c: string, d: string) =>
+  `linear-gradient(180deg, ${a} 0%, ${b} 45%, ${c} 75%, ${d} 100%)`;
+
+/**
+ * Each kind of weather paints its own sky over the usual one (day / night),
+ * from a soft grey haze for fog down to near-black for a storm. All stay
+ * dark enough for the white text on top.
+ */
+const WEATHER_SKY: Partial<
+  Record<SkyWeather, { day: string; night: string; strength: number }>
+> = {
+  cloudy: {
+    day: sky4('#4E4A5E', '#635C70', '#6E6375', '#3A2A3C'),
+    night: sky4('#232233', '#2E2B3E', '#352E40', '#1E1624'),
+    strength: 0.6,
+  },
+  fog: {
+    day: sky4('#69636F', '#77707C', '#7E7480', '#3E2E3C'),
+    night: sky4('#423E4E', '#4E4858', '#54495A', '#2A1F2C'),
+    strength: 0.75,
+  },
+  drizzle: {
+    day: sky4('#3E3E52', '#504E62', '#5A5468', '#2E2436'),
+    night: sky4('#1C1C2E', '#262638', '#2C283A', '#16101E'),
+    strength: 0.65,
+  },
+  rain: {
+    day: sky4('#30303F', '#404052', '#4A4558', '#241C2C'),
+    night: sky4('#141424', '#1C1C2E', '#232032', '#100C16'),
+    strength: 0.8,
+  },
+  storm: {
+    day: sky4('#1C1A28', '#28263A', '#332E44', '#181220'),
+    night: sky4('#0A0A16', '#121226', '#1A1728', '#08060E'),
+    strength: 0.92,
+  },
+  snow: {
+    day: sky4('#56627E', '#6A7490', '#76788F', '#3A3450'),
+    night: sky4('#2A3150', '#353C5C', '#3E405A', '#1E1A2E'),
+    strength: 0.75,
+  },
+};
+
 /** Clouds after dark (when the forecast says there are some). */
 const NIGHT_CLOUD = 'rgba(186,182,212,';
 
@@ -899,6 +942,20 @@ export const SkyScene = memo(function SkySceneInner({
     high: bt - 70,
     low: head.top + head.height + 30,
   };
+  // The weather's own sky: fog, drizzle, rain, storms and snow always paint
+  // theirs; an overcast sky greys in proportion to its cloud cover.
+  const weatherSky = !weather
+    ? undefined
+    : wet
+    ? WEATHER_SKY[weather]
+    : weather === 'cloudy' || heavy
+    ? WEATHER_SKY.cloudy
+    : undefined;
+  const weatherSkyStrength = !weatherSky
+    ? 0
+    : wet || cover === null
+    ? weatherSky.strength
+    : Math.min(1, Math.max(0, (cover - 0.5) / 0.45)) * weatherSky.strength;
   const cloudColor = overcast
     ? overcast[night ? 1 : 0]
     : sky.clouds ?? (cover !== null ? NIGHT_CLOUD : undefined);
@@ -924,6 +981,17 @@ export const SkyScene = memo(function SkySceneInner({
         {sky.sun === 'arc' && sunny ? (
           // A sunny day: the warm sky of the Five Skies design.
           <View style={[abs, { backgroundImage: SUNNY_SKY, opacity: sunny }]} />
+        ) : null}
+        {weatherSky && weatherSkyStrength ? (
+          <View
+            style={[
+              abs,
+              {
+                backgroundImage: night ? weatherSky.night : weatherSky.day,
+                opacity: weatherSkyStrength,
+              },
+            ]}
+          />
         ) : null}
         {veil ? <View style={[abs, { backgroundImage: veil }]} /> : null}
         {sky.stars * starsVisible && h ? (
