@@ -196,9 +196,6 @@ function GlideBar({ progress, fill }: { progress: number; fill: string }) {
   );
 }
 
-/** How much of the content below the prayer card shows on first view. */
-const PEEK = 20;
-
 type AlertInfo = {
   icon: string;
   text: string;
@@ -208,13 +205,11 @@ type AlertInfo = {
 
 /**
  * One prayer's page: its sky (following the live weather), its time and its
- * actions. It fills the visible screen; the open sky stretches or shrinks so
- * the whole card always fits above the tab bar.
+ * actions. Kept compact so the whole card fits on screen above the tab bar.
  */
 function PrayerSky({
   page,
   width,
-  minHeight,
   padTop,
   active,
   placeName,
@@ -233,7 +228,6 @@ function PrayerSky({
 }: {
   page: PrayerPage;
   width: number;
-  minHeight: number;
   padTop: number;
   active: boolean;
   placeName: string;
@@ -298,7 +292,7 @@ function PrayerSky({
     <View
       style={[
         styles.page,
-        { width, minHeight, paddingTop: padTop, backgroundImage: theme.hero },
+        { width, paddingTop: padTop, backgroundImage: theme.hero },
       ]}
     >
       <SkyScene
@@ -310,8 +304,8 @@ function PrayerSky({
         still={!active}
       />
 
-      {/* Open sky where the moon and birds go (no text over it). It takes
-          whatever height is left, so the card fits any screen. */}
+      {/* Open sky above the name, for clouds, birds and the top of the
+          sun or moon (no text over it). */}
       <View
         style={compactHeight ? styles.skyCompact : styles.sky}
         onLayout={e => {
@@ -460,7 +454,7 @@ export function HomeScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const nav = useNav();
-  const { fs, width: windowWidth, height } = useResponsive();
+  const { fs, width: windowWidth } = useResponsive();
   const { state, togglePrayed, tasbeehConfig } = useStore();
   const adhan = useAdhanControls();
   const {
@@ -501,8 +495,6 @@ export function HomeScreen() {
   const prayedToday = (state.prayed[todayKey] ?? []).length;
 
   const [pagerW, setPagerW] = useState(windowWidth);
-  /** Visible height of Today (between the top of the screen and the tab bar). */
-  const [viewH, setViewH] = useState(0);
   const [headerH, setHeaderH] = useState(insets.top + 110);
   const [tabsW, setTabsW] = useState(0);
   const [page, setPage] = useState(anchor);
@@ -610,11 +602,6 @@ export function HomeScreen() {
   const name = NAMES_OF_ALLAH[idx % NAMES_OF_ALLAH.length];
   const lastRead = state.lastRead;
   const cell = tabsW / pages.length;
-  // The prayer card fills the visible screen, leaving a sliver of what's
-  // below so it's clear the page scrolls.
-  const pageMinHeight = viewH
-    ? Math.max(420, viewH - PEEK)
-    : Math.max(480, Math.round(height * 0.72));
   const shown = pages[page] ?? pages[anchor];
   const shownName = nameOf(shown);
 
@@ -623,10 +610,6 @@ export function HomeScreen() {
       style={{ backgroundColor: theme.bg }}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
-      onLayout={e => {
-        const h = Math.round(e.nativeEvent.layout.height);
-        if (h && h !== viewH) setViewH(h);
-      }}
     >
       {/* ---------- Five skies ---------- */}
       <View
@@ -657,7 +640,6 @@ export function HomeScreen() {
               key={p.key}
               page={p}
               width={pagerW}
-              minHeight={pageMinHeight}
               padTop={headerH}
               active={i === page}
               placeName={place.name}
@@ -1081,9 +1063,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   page: { overflow: 'hidden', paddingBottom: 26 },
-  // The open sky takes the height that's left (at least this much).
-  sky: { flexGrow: 1, minHeight: 56 },
-  skyCompact: { flexGrow: 1, minHeight: 26 },
+  sky: { height: 76 },
+  skyCompact: { height: 34 },
   pageBody: { paddingHorizontal: 20 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   pageLabel: {

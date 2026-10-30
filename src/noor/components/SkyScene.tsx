@@ -29,6 +29,7 @@ const SKIES: Record<DayPhase, Sky> = {
       'radial-gradient(ellipse at 18% 100%, rgba(255,176,112,0.55) 0%, rgba(255,140,100,0) 70%)',
     stars: 0.45,
     sun: 'rise',
+    moon: 0.7,
     clouds: 'rgba(255,200,180,',
     birds: 'rgba(24,18,46,0.7)',
   },
@@ -54,7 +55,7 @@ const SKIES: Record<DayPhase, Sky> = {
       'radial-gradient(ellipse at 84% 100%, rgba(255,150,70,0.6) 0%, rgba(255,110,60,0) 70%)',
     stars: 0.6,
     sun: 'set',
-    moon: 0.75,
+    moon: 0.9,
   },
   night: {
     tint: 'linear-gradient(180deg, rgba(2,6,26,0.58) 0%, rgba(2,6,26,0.12) 100%)',
@@ -65,7 +66,6 @@ const SKIES: Record<DayPhase, Sky> = {
 };
 
 const abs = StyleSheet.absoluteFill;
-const MOON = 36;
 /** Shooting-star path (down and to the left) and the matching tilt. */
 const METEOR = { dx: -150, dy: 40 };
 const METEOR_TILT = `${
@@ -199,14 +199,20 @@ function Sun({
   );
 }
 
+/**
+ * The moon after sunset and before sunrise: a large crescent (the same size
+ * as the daytime sun) with a soft glow and the faint rest of its disc.
+ */
 function Moon({
   x,
   y,
+  size,
   opacity,
   animate,
 }: {
   x: number;
   y: number;
+  size: number;
   opacity: number;
   animate: boolean;
 }) {
@@ -216,30 +222,39 @@ function Moon({
     bounce: true,
     easing: SINE,
   });
+  const glow = size * 1.9;
   return (
     <Animated.View
       style={[
         styles.moon,
         {
-          left: x - MOON / 2,
-          top: y - MOON / 2,
+          left: x - glow / 2,
+          top: y - glow / 2,
+          width: glow,
+          height: glow,
           opacity,
           transform: [
             {
               translateY: t.interpolate({
                 inputRange: [0, 1],
-                outputRange: [-2.5, 2.5],
+                outputRange: [-3, 3],
               }),
             },
           ],
         },
       ]}
     >
-      <View style={styles.moonGlow} />
+      <View style={[abs, styles.moonGlow]} />
+      <View
+        style={[
+          styles.moonBody,
+          { width: size, height: size, borderRadius: size / 2 },
+        ]}
+      />
       <Crescent
-        size={MOON}
+        size={size}
         color={onHero.gold}
-        glow="0px 0px 16px rgba(255,197,138,0.5)"
+        glow={`0px 0px ${Math.round(size * 0.22)}px rgba(255,197,138,0.45)`}
       />
     </Animated.View>
   );
@@ -892,8 +907,9 @@ export const SkyScene = memo(function SkySceneInner({
             ) : null}
             {sky.moon && look.moon ? (
               <Moon
-                x={w * 0.74}
-                y={bt + bh / 2}
+                x={w - disc * 0.3}
+                y={head.top + head.height * 0.25}
+                size={disc}
                 opacity={sky.moon * look.moon}
                 animate={!reduce}
               />
@@ -972,15 +988,19 @@ const styles = StyleSheet.create({
       'radial-gradient(circle at 38% 38%, #FFF1DE 0%, #FFC58A 55%, #F4A26B 100%)',
     boxShadow: '0px 0px 90px 30px rgba(255,197,138,0.42)',
   },
-  moon: { position: 'absolute', width: MOON, height: MOON },
-  moonGlow: {
+  moon: {
     position: 'absolute',
-    left: (MOON - 150) / 2,
-    top: (MOON - 150) / 2,
-    width: 150,
-    height: 150,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moonGlow: {
     backgroundImage:
-      'radial-gradient(circle, rgba(255,197,138,0.3) 0%, rgba(255,197,138,0) 70%)',
+      'radial-gradient(circle, rgba(255,197,138,0.26) 0%, rgba(255,197,138,0.08) 40%, rgba(255,197,138,0) 70%)',
+  },
+  // The unlit part of the moon, just visible against the night sky.
+  moonBody: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255,236,206,0.07)',
   },
   cloud: { position: 'absolute', left: 0 },
   puff: { position: 'absolute' },
