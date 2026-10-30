@@ -108,8 +108,9 @@ function TabItem({
 }
 
 /**
- * Floating dock at the bottom of the app (Today, Quran, Qibla, Tasbeeh, More)
- * with a highlight that glides to the selected tool.
+ * Tab bar along the bottom of the app (Today, Quran, Qibla, Tasbeeh, More):
+ * rounded at the top, flat against the bottom edge, with a highlight that
+ * glides to the selected tool.
  */
 export function TabBar({ tab, onChange }: Props) {
   const theme = useTheme();
@@ -134,70 +135,78 @@ export function TabBar({ tab, onChange }: Props) {
   }, [index, pos]);
 
   return (
-    <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+    <View
+      style={[
+        styles.dock,
+        theme.isDark ? styles.dockShadowDark : styles.dockShadow,
+        {
+          backgroundColor: theme.dock,
+          borderColor: theme.dockBorder,
+          paddingBottom: Math.max(insets.bottom, 8) + 4,
+        },
+      ]}
+    >
       <View
-        style={[
-          styles.dock,
-          theme.isDark ? styles.dockShadowDark : styles.dockShadow,
-          { backgroundColor: theme.dock, borderColor: theme.dockBorder },
-        ]}
+        style={styles.row}
+        onLayout={e => setWidth(e.nativeEvent.layout.width)}
       >
-        <View
-          style={styles.row}
-          onLayout={e => setWidth(e.nativeEvent.layout.width)}
-        >
-          {width > 0 && (
+        {width > 0 && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.highlightWrap,
+              {
+                width: itemWidth,
+                transform: [
+                  {
+                    translateX: pos.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, itemWidth],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            {/* Stretches mid-slide, like a droplet moving between tools. */}
             <Animated.View
-              pointerEvents="none"
-              style={[
-                styles.highlightWrap,
-                {
-                  width: itemWidth,
-                  transform: [
-                    {
-                      translateX: pos.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, itemWidth],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              {/* Stretches mid-slide, like a droplet moving between tools. */}
-              <Animated.View
-                style={[styles.highlight, { transform: [{ scaleX: stretch }] }]}
-              />
-            </Animated.View>
-          )}
-          {TABS.map(t => (
-            <TabItem
-              key={t.key}
-              active={t.key === tab}
-              label={t.label}
-              icon={t.icon}
-              onPress={() => onChange(t.key)}
+              style={[styles.highlight, { transform: [{ scaleX: stretch }] }]}
             />
-          ))}
-        </View>
+          </Animated.View>
+        )}
+        {TABS.map(t => (
+          <TabItem
+            key={t.key}
+            active={t.key === tab}
+            label={t.label}
+            icon={t.icon}
+            onPress={() => onChange(t.key)}
+          />
+        ))}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { paddingHorizontal: 16, paddingTop: 6 },
   dock: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    paddingTop: 7,
+    paddingHorizontal: 8,
+  },
+  dockShadow: { boxShadow: '0px -8px 24px rgba(42,21,32,0.18)' },
+  dockShadowDark: { boxShadow: '0px -8px 24px rgba(0,0,0,0.45)' },
+  // On wide screens the tabs stay a comfortable width, centred.
+  row: {
+    flexDirection: 'row',
     width: '100%',
     maxWidth: 520,
     alignSelf: 'center',
-    borderRadius: 32,
-    borderWidth: 1,
-    padding: 5,
   },
-  dockShadow: { boxShadow: '0px 12px 28px rgba(42,21,32,0.28)' },
-  dockShadowDark: { boxShadow: '0px 10px 28px rgba(0,0,0,0.55)' },
-  row: { flexDirection: 'row' },
   highlightWrap: {
     position: 'absolute',
     top: 0,

@@ -536,7 +536,7 @@ describe('chat support (AI)', () => {
   const STORE = 'noor:chat:v1';
   const openChat = async () => {
     await mount(DURING_ASR, { onboarded: true });
-    await pressByLabel(root(), 'Settings');
+    await pressByLabel(root(), 'More');
     await pressByLabel(root(), 'Chat support');
   };
   const reply = (text: string) =>
@@ -546,7 +546,7 @@ describe('chat support (AI)', () => {
     });
   afterEach(() => jest.restoreAllMocks());
 
-  test('Settings has a Chat support button that opens the assistant', async () => {
+  test('More has a Chat support button that opens the assistant', async () => {
     await openChat();
     const text = textContent(root());
     expect(text).toContain('Falaq Assistant');
@@ -554,6 +554,13 @@ describe('chat support (AI)', () => {
     expect(text).toContain('TRY ASKING');
     expect(text).toContain('AI answers can be wrong');
     expect(has('Send')).toBe(true);
+  });
+
+  test('Chat support is shown once: on More, not in Settings', async () => {
+    await mount(DURING_ASR, { onboarded: true });
+    await pressByLabel(root(), 'Settings');
+    expect(textContent(root())).toContain('PRAYER CALCULATION');
+    expect(has('Chat support')).toBe(false);
   });
 
   test('a question gets a formatted answer, with the user’s context', async () => {

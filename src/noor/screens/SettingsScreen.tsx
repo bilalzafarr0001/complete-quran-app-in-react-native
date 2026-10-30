@@ -8,7 +8,6 @@ import {
   View,
 } from 'react-native';
 import { BottomSheet } from '../components/BottomSheet';
-import { ChatSupportCard } from '../components/ChatSupportCard';
 import { FadeIn } from '../components/FadeIn';
 import { LocationPicker } from '../components/LocationPicker';
 import { PressableScale } from '../components/PressableScale';
@@ -619,10 +618,6 @@ export function SettingsScreen() {
           arabic="الإعدادات"
           subtitle={state.name ? `Assalamu alaikum, ${state.name}` : undefined}
         />
-
-        <FadeIn delay={30} style={contentColumn}>
-          <ChatSupportCard />
-        </FadeIn>
 
         <FadeIn delay={60} style={contentColumn}>
           <Section title="LOCATION" icon="📍">

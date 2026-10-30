@@ -50,8 +50,8 @@ const APP_GUIDE = `- Today tab: one page per prayer (Fajr, Dhuhr, Asr, Maghrib, 
 - Quran tab: all 114 surahs in Arabic with English and/or Urdu translation, recitation by several reciters (Settings > Quran audio), bookmarks, continue reading and offline downloads.
 - Qibla tab: compass direction and distance to the Kaaba.
 - Tasbeeh tab: counter for SubhanAllah, Alhamdulillah, Allahu Akbar, La ilaha illallah, Astaghfirullah, Durood and more, with targets of 33, 99 or 100.
-- More tab: Prayer Times, Ramadan (Sehri & Iftar timetable), 99 Names of Allah, Duas (daily, Friday, Ramadan, Janazah, travel and more) and Settings.
-- Chat support: this chat (Settings > Chat support).`;
+- More tab: Chat support, Prayer Times, Ramadan (Sehri & Iftar timetable), 99 Names of Allah, Duas (daily, Friday, Ramadan, Janazah, travel and more) and Settings.
+- Chat support: this chat (More > Chat support).`;
 
 /** The instructions sent with every conversation. */
 export function buildSystemPrompt(ctx: AssistantContext): string {
