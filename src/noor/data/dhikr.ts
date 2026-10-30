@@ -42,6 +42,12 @@ export const DHIKR: Dhikr[] = [
     transliteration: 'SubhanAllahi wa bihamdihi',
     meaning: 'Glory be to Allah and all praise is His',
   },
+  {
+    id: 'durood',
+    arabic: 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ',
+    transliteration: "Allahumma salli 'ala Muhammad",
+    meaning: 'O Allah, send blessings upon Muhammad ﷺ',
+  },
 ];
 
 export const TASBEEH_TARGETS = [33, 99, 100];

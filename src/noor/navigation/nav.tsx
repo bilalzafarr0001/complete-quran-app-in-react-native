@@ -1,13 +1,14 @@
 import { createContext, useContext } from 'react';
+import type { DuaCategory } from '../data/duas';
 
-export type TabName = 'home' | 'quran' | 'prayer' | 'tasbeeh' | 'more';
+export type TabName = 'home' | 'quran' | 'qibla' | 'tasbeeh' | 'more';
 
 export type Route =
   | { name: 'surah'; surah: number; ayah?: number }
+  | { name: 'prayer' }
   | { name: 'names' }
-  | { name: 'duas' }
+  | { name: 'duas'; category?: DuaCategory; dua?: string }
   | { name: 'ramadan' }
-  | { name: 'qibla' }
   | { name: 'settings' };
 
 export type Nav = {

@@ -55,14 +55,14 @@ function renderRoute(route: Route) {
   switch (route.name) {
     case 'surah':
       return <SurahScreen surah={route.surah} ayah={route.ayah} />;
+    case 'prayer':
+      return <PrayerScreen />;
     case 'names':
       return <NamesScreen />;
     case 'duas':
-      return <DuasScreen />;
+      return <DuasScreen category={route.category} dua={route.dua} />;
     case 'ramadan':
       return <RamadanScreen />;
-    case 'qibla':
-      return <QiblaScreen />;
     case 'settings':
       return <SettingsScreen />;
   }
@@ -74,8 +74,8 @@ function renderTab(tab: TabName) {
       return <HomeScreen />;
     case 'quran':
       return <QuranScreen />;
-    case 'prayer':
-      return <PrayerScreen />;
+    case 'qibla':
+      return <QiblaScreen />;
     case 'tasbeeh':
       return <TasbeehScreen />;
     case 'more':

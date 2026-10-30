@@ -31,6 +31,8 @@ export type NotifySettings = {
   sehriMinutes: 0 | 30 | 45 | 60;
   /** Alert at sunrise (end of Fajr time). */
   sunrise: boolean;
+  /** Fridays: "Jumu'ah Mubarak" and a reminder to send Durood. */
+  durood: boolean;
 };
 export type Translation = 'en' | 'ur' | 'both' | 'off';
 
@@ -92,6 +94,7 @@ const INITIAL: AppState = {
     reminderMinutes: 0,
     sehriMinutes: 0,
     sunrise: false,
+    durood: true,
   },
   reciterId: 'ar.alafasy',
   repeat: 'off',

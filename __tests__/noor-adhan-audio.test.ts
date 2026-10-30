@@ -57,6 +57,7 @@ const ON: NotifySettings = {
   reminderMinutes: 0,
   sehriMinutes: 0,
   sunrise: false,
+  durood: false,
 };
 
 describe('recitation', () => {
@@ -265,6 +266,112 @@ describe('adhan schedule', () => {
   });
 });
 
+describe("Fridays: Jumu'ah and the Durood reminder", () => {
+  // Monday 19 Oct 2026, 10:00 in Lahore; Friday is the 23rd.
+  const NOW = Date.UTC(2026, 9, 19, 5, 0);
+  const FRIDAY = { y: 2026, m: 10, d: 23 };
+  const plan = (settings: Partial<NotifySettings>, now = NOW, days = 7) =>
+    planAlerts({
+      place: LAHORE,
+      method: 'karachi',
+      madhab: 'hanafi',
+      settings: { ...ON, ...settings },
+      now,
+      days,
+    });
+
+  test('one Durood reminder each Friday at 10:00 local time', () => {
+    const durood = plan({ durood: true }).filter(a => a.kind === 'durood');
+    expect(durood.map(a => a.id)).toEqual(['durood-2026-10-23']);
+    expect(durood[0].at).toBe(localToUtcMs(FRIDAY, 10, 5));
+    expect(new Date(durood[0].at).toISOString()).toBe(
+      '2026-10-23T05:00:00.000Z',
+    );
+    // Two Fridays when the window reaches the next one.
+    expect(
+      plan({ durood: true }, NOW, 14)
+        .filter(a => a.kind === 'durood')
+        .map(a => a.id),
+    ).toEqual(['durood-2026-10-23', 'durood-2026-10-30']);
+  });
+
+  test("none when it's switched off, when alerts are off, or once 10:00 has passed", () => {
+    expect(plan({ durood: false }).some(a => a.kind === 'durood')).toBe(false);
+    expect(plan({ durood: true, enabled: false })).toEqual([]);
+    // Friday 11:00 in Lahore: today's reminder has gone out already.
+    const fridayLate = Date.UTC(2026, 9, 23, 6, 0);
+    expect(
+      plan({ durood: true }, fridayLate, 1).some(a => a.kind === 'durood'),
+    ).toBe(false);
+  });
+
+  test('on a Friday afternoon, next Friday is already queued', () => {
+    // Prayer alerts cover 7 days (Fri 23 – Thu 29); next Friday is the 8th.
+    const fridayLate = Date.UTC(2026, 9, 23, 6, 0);
+    const alerts = plan({ durood: true }, fridayLate);
+    expect(alerts.filter(a => a.kind === 'durood').map(a => a.id)).toEqual([
+      'durood-2026-10-30',
+    ]);
+    expect(alerts.some(a => a.id.startsWith('adhan-2026-10-30'))).toBe(false);
+  });
+
+  test('the Durood reminder reads Jumu’ah Mubarak and expands to show it all', () => {
+    const [a] = plan({ durood: true }).filter(x => x.kind === 'durood');
+    const n = buildNotification(a, LAHORE, 0);
+    expect(n.title).toBe("Jumu'ah Mubarak · جمعة مباركة");
+    expect(n.body).toContain('Send abundant Durood upon the Prophet ﷺ today');
+    expect(n.android?.channelId).toBe(CHANNELS.friday);
+    expect(n.android?.importance).toBe(3); // default: a gentle reminder
+    expect(n.android?.style).toEqual({ type: 1, text: n.body });
+    expect(n.android?.actions).toBeUndefined();
+  });
+
+  test("Friday's Dhuhr adhan and reminder are announced as Jumu'ah", () => {
+    const alerts = plan({ reminderMinutes: 15 });
+    const at = (id: string) => alerts.find(a => a.id === id)!;
+    expect(at('adhan-2026-10-23-dhuhr').jumuah).toBe(true);
+    expect(at('remind-2026-10-23-dhuhr').jumuah).toBe(true);
+    expect(at('adhan-2026-10-22-dhuhr').jumuah).toBeUndefined();
+    expect(at('adhan-2026-10-23-asr').jumuah).toBeUndefined();
+
+    const adhan = buildNotification(at('adhan-2026-10-23-dhuhr'), LAHORE, 15);
+    expect(adhan.title).toBe("Jumu'ah · الجمعة");
+    expect(adhan.body).toMatch(
+      /^It's time for Jumu'ah in Lahore \(11:\d\d AM\)\.$/,
+    );
+    const reminder = buildNotification(
+      at('remind-2026-10-23-dhuhr'),
+      LAHORE,
+      15,
+    );
+    expect(reminder.title).toBe("Jumu'ah in 15 minutes");
+    const thursday = buildNotification(at('adhan-2026-10-22-dhuhr'), LAHORE, 0);
+    expect(thursday.title).toBe('Dhuhr · الظهر');
+  });
+
+  test('the reminder is scheduled with the other alerts and replaced on reschedule', async () => {
+    const triggers = (
+      notifee as unknown as { __triggers: Map<string, unknown> }
+    ).__triggers;
+    triggers.clear();
+    triggers.set('durood-old', {});
+    const input = {
+      place: LAHORE,
+      method: 'karachi' as const,
+      madhab: 'hanafi' as const,
+      settings: { ...ON, durood: true },
+      now: NOW,
+      days: 7,
+    };
+    expect(await scheduleAlerts(input)).toBe(35); // 34 prayers + 1 Friday
+    expect(triggers.has('durood-old')).toBe(false);
+    expect(triggers.has('durood-2026-10-23')).toBe(true);
+
+    await scheduleAlerts({ ...input, settings: { ...ON, durood: false } });
+    expect(triggers.has('durood-2026-10-23')).toBe(false);
+  });
+});
+
 describe('sehri reminders (Ramadan)', () => {
   // 25 Feb 2026, 05:00 in Lahore: during Ramadan 1447.
   const RAMADAN_NOW = Date.UTC(2026, 1, 25, 0, 0);
@@ -365,6 +472,38 @@ describe('adhan on Android (native player)', () => {
     expect(triggers.has('adhan-2026-10-19-asr')).toBe(false);
     expect(triggers.size).toBe(5);
     expect(notifee.deleteChannel).toHaveBeenCalledWith(CHANNELS.adhan);
+  });
+
+  test("on Fridays the native adhan is titled Jumu'ah; the Durood reminder goes to notifee", async () => {
+    await scheduleAlerts({
+      place: LAHORE,
+      method: 'karachi',
+      madhab: 'hanafi',
+      settings: { ...ON, durood: true },
+      now: Date.UTC(2026, 9, 23, 3, 0), // Friday 08:00 in Lahore
+      days: 1,
+    });
+    const alarms = native.schedule.mock.calls[0][0] as {
+      id: string;
+      title: string;
+      body: string;
+    }[];
+    const dhuhr = alarms.find(a => a.id === 'adhan-2026-10-23-dhuhr')!;
+    expect(dhuhr.title).toBe("Jumu'ah · الجمعة");
+    expect(dhuhr.body).toMatch(/^It's time for Jumu'ah in Lahore/);
+    expect(alarms.find(a => a.id === 'adhan-2026-10-23-asr')!.title).toBe(
+      'Asr · العصر',
+    );
+    expect(alarms.some(a => a.id.startsWith('durood-'))).toBe(false);
+    expect(triggers.has('durood-2026-10-23')).toBe(true);
+    expect(notifee.createChannels).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: CHANNELS.friday,
+          name: 'Friday reminders',
+        }),
+      ]),
+    );
   });
 
   test('turning alerts off clears the native adhans too', async () => {

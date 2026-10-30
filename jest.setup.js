@@ -79,6 +79,7 @@ jest.mock('@notifee/react-native', () => {
     AndroidCategory: { ALARM: 'alarm', REMINDER: 'reminder' },
     AndroidImportance: { DEFAULT: 3, HIGH: 4 },
     AndroidNotificationSetting: { NOT_SUPPORTED: -1, DISABLED: 0, ENABLED: 1 },
+    AndroidStyle: { BIGPICTURE: 0, BIGTEXT: 1 },
     AndroidVisibility: { PUBLIC: 1 },
     AuthorizationStatus: { NOT_DETERMINED: -1, DENIED: 0, AUTHORIZED: 1 },
     EventType: { DISMISSED: 0, PRESS: 1, ACTION_PRESS: 2 },

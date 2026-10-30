@@ -119,7 +119,6 @@ export function QiblaScreen() {
     <View style={[styles.flex, { backgroundColor: theme.bg }]}>
       <ScrollView contentContainerStyle={styles.content}>
         <ScreenHeader
-          back
           title="Qibla"
           arabic="القبلة"
           subtitle={`From ${placeLabel(place)}`}

@@ -19,9 +19,15 @@ import { useAdhanControls } from '../hooks/useAdhanControls';
 import { usePlace, usePrayerData } from '../hooks/usePrayerData';
 import { contentColumn } from '../hooks/useResponsive';
 import { dateKey } from '../logic/dates';
+import { DUROOD_HOUR } from '../logic/friday';
 import { formatHijri } from '../logic/hijri';
 import { SEHRI_OPTIONS } from '../logic/ramadan';
-import { METHODS, MethodId, PRAYER_LABELS } from '../logic/prayerTimes';
+import {
+  formatTime,
+  METHODS,
+  MethodId,
+  PRAYER_LABELS,
+} from '../logic/prayerTimes';
 import { formatOffset, offsetAt } from '../logic/timezone';
 import { useNav } from '../navigation/nav';
 import {
@@ -186,6 +192,8 @@ function Option({
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 
 const SALAH: SalahKey[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+/** Starts in Arabic, so a left-to-right mark keeps the line in order. */
+const DHUHR_HINT = `\u200E${PRAYER_LABELS.dhuhr.ar} · Jumu'ah on Fridays`;
 
 function Notice({
   icon,
@@ -295,6 +303,8 @@ function AdhanSettings() {
                   <Text style={[styles.rowHint, { color: theme.muted }]}>
                     {k === 'fajr' && c.settings.modes[k] === 'adhan'
                       ? 'Fajr adhan'
+                      : k === 'dhuhr'
+                      ? DHUHR_HINT
                       : PRAYER_LABELS[k].ar}
                   </Text>
                 </View>
@@ -336,6 +346,35 @@ function AdhanSettings() {
               trackColor={{ true: theme.primary, false: theme.border }}
               thumbColor="#FFFFFF"
               accessibilityLabel="Sunrise alert"
+            />
+          </View>
+        ) : null}
+        {on ? (
+          <View
+            style={[
+              styles.row,
+              {
+                borderTopWidth: StyleSheet.hairlineWidth,
+                borderColor: theme.border,
+              },
+            ]}
+          >
+            <View style={styles.flex}>
+              <Text style={[styles.rowLabel, { color: theme.text }]}>
+                Friday Durood reminder
+              </Text>
+              <Text style={[styles.rowHint, { color: theme.muted }]}>
+                {`Jumu'ah Mubarak at ${formatTime(
+                  DUROOD_HOUR,
+                )}, with a reminder to send Durood`}
+              </Text>
+            </View>
+            <Switch
+              value={c.settings.durood}
+              onValueChange={v => c.updateNotifications({ durood: v })}
+              trackColor={{ true: theme.primary, false: theme.border }}
+              thumbColor="#FFFFFF"
+              accessibilityLabel="Friday Durood reminder"
             />
           </View>
         ) : null}

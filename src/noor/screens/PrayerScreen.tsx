@@ -15,6 +15,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { usePrayerData } from '../hooks/usePrayerData';
 import { contentColumn, useResponsive } from '../hooks/useResponsive';
 import { dateKey, formatGregorian } from '../logic/dates';
+import { prayerLabel } from '../logic/friday';
 import { formatHijri, toHijri } from '../logic/hijri';
 import { offsetOn } from '../logic/timezone';
 import {
@@ -23,7 +24,6 @@ import {
   formatTime,
   METHODS,
   PRAYER_KEYS,
-  PRAYER_LABELS,
   PrayerKey,
   SALAH_KEYS,
 } from '../logic/prayerTimes';
@@ -413,13 +413,14 @@ export function PrayerScreen() {
         showsVerticalScrollIndicator={false}
       >
         <ScreenHeader
+          back
           title="Prayer Times"
           arabic="مواقيت الصلاة"
           subtitle={placeLabel(place)}
           right={
             <PressableScale
               style={styles.qiblaBtn}
-              onPress={() => nav.push({ name: 'qibla' })}
+              onPress={() => nav.setTab('qibla')}
               accessibilityLabel="Qibla direction"
             >
               <Text maxFontSizeMultiplier={1.2} style={styles.qiblaText}>
@@ -445,7 +446,7 @@ export function PrayerScreen() {
             </View>
             <FadeIn key={status.next} distance={8}>
               <Text maxFontSizeMultiplier={1.3} style={styles.nextLabel}>
-                {PRAYER_LABELS[status.next].en} in
+                {prayerLabel(status.next, date).en} in
               </Text>
             </FadeIn>
             <RollingCountdown
@@ -562,6 +563,7 @@ export function PrayerScreen() {
               const isSalah = k !== 'sunrise';
               const done = prayed.includes(k);
               const faded = isPast && !isNext;
+              const label = prayerLabel(k, selected);
               return (
                 <FadeIn key={`${key}-${k}`} delay={100 + i * 55}>
                   <View
@@ -602,7 +604,7 @@ export function PrayerScreen() {
                           faded && styles.past,
                         ]}
                       >
-                        {PRAYER_LABELS[k].en}
+                        {label.en}
                       </Text>
                       <Text
                         maxFontSizeMultiplier={1.3}
@@ -612,7 +614,7 @@ export function PrayerScreen() {
                           { color: isNext ? onHero.gold : theme.muted },
                         ]}
                       >
-                        {PRAYER_LABELS[k].ar}
+                        {label.ar}
                         {isNext ? '  ·  up next' : ''}
                       </Text>
                     </View>
@@ -638,7 +640,7 @@ export function PrayerScreen() {
                       }
                       label={
                         isSalah
-                          ? `${PRAYER_LABELS[k].en} alert: ${
+                          ? `${label.en} alert: ${
                               adhan.settings.enabled
                                 ? ALERT_LABEL[
                                     adhan.settings.modes[k as SalahKey]

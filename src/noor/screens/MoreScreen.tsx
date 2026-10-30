@@ -17,6 +17,13 @@ const FEATURES: {
   icon: string;
 }[] = [
   {
+    route: { name: 'prayer' },
+    title: 'Prayer Times',
+    arabic: 'مواقيت الصلاة',
+    desc: 'Any day, alerts & salah tracker',
+    icon: '🕌',
+  },
+  {
     route: { name: 'ramadan' },
     title: 'Ramadan',
     arabic: 'رمضان',
@@ -36,13 +43,6 @@ const FEATURES: {
     arabic: 'الأدعية',
     desc: 'Daily supplications',
     icon: '🤲',
-  },
-  {
-    route: { name: 'qibla' },
-    title: 'Qibla',
-    arabic: 'القبلة',
-    desc: 'Direction to the Kaaba',
-    icon: '🧭',
   },
   {
     route: { name: 'settings' },

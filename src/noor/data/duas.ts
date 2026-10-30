@@ -1,5 +1,6 @@
 export type DuaCategory =
   | 'Daily'
+  | 'Friday'
   | 'Ramadan'
   | 'Janazah'
   | 'Morning & Evening'
@@ -21,6 +22,7 @@ export type Dua = {
 
 export const DUA_CATEGORIES: DuaCategory[] = [
   'Daily',
+  'Friday',
   'Ramadan',
   'Janazah',
   'Morning & Evening',
@@ -133,6 +135,28 @@ export const DUAS: Dua[] = [
     transliteration: "Allahumma inni as'aluka min fadlik",
     translation: 'O Allah, I ask You of Your bounty.',
     reference: 'Sahih Muslim',
+  },
+  {
+    id: 'durood-ibrahimi',
+    title: 'Durood Ibrahimi (Salawat)',
+    category: 'Friday',
+    arabic:
+      'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ، كَمَا صَلَّيْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ، اللَّهُمَّ بَارِكْ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ، كَمَا بَارَكْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ، إِنَّكَ حَمِيدٌ مَجِيدٌ',
+    transliteration:
+      "Allahumma salli 'ala Muhammadin wa 'ala ali Muhammad, kama sallayta 'ala Ibrahima wa 'ala ali Ibrahim, innaka Hamidun Majid. Allahumma barik 'ala Muhammadin wa 'ala ali Muhammad, kama barakta 'ala Ibrahima wa 'ala ali Ibrahim, innaka Hamidun Majid",
+    translation:
+      'O Allah, send prayers upon Muhammad and the family of Muhammad, as You sent prayers upon Ibrahim and the family of Ibrahim; You are Praiseworthy, Glorious. O Allah, bless Muhammad and the family of Muhammad, as You blessed Ibrahim and the family of Ibrahim; You are Praiseworthy, Glorious.',
+    reference:
+      'Sahih al-Bukhari 3370. Send it abundantly on Fridays: Sunan Abi Dawud 1047',
+  },
+  {
+    id: 'durood-short',
+    title: 'Short Durood (to repeat often)',
+    category: 'Friday',
+    arabic: 'اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ',
+    transliteration: "Allahumma salli wa sallim 'ala nabiyyina Muhammad",
+    translation: 'O Allah, send prayers and peace upon our Prophet Muhammad.',
+    reference: 'Quran, Al-Ahzab 33:56 (the command to send salawat and salam)',
   },
   {
     id: 'travel',

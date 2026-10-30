@@ -1,9 +1,10 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
   Pressable,
   ScrollView,
+  ScrollViewInstance,
   StyleSheet,
   Switch,
   Text,
@@ -171,6 +172,30 @@ export function TasbeehScreen() {
   const [burst, setBurst] = useState(0);
   const breath = useRef(new Animated.Value(0)).current;
 
+  // Keep the chosen dhikr's chip in view, e.g. when Durood is picked from
+  // Today (its chip is at the end of the row).
+  const chipScroll = useRef<ScrollViewInstance>(null);
+  const chipAt = useRef<Record<string, { x: number; width: number }>>({});
+  const chipView = useRef({ x: 0, width: 0 });
+  const chosen = useRef(dhikrId);
+  chosen.current = dhikrId;
+  const revealChip = useCallback((animated: boolean) => {
+    const chip = chipAt.current[chosen.current];
+    const view = chipView.current;
+    if (!chip || !view.width) return;
+    const pad = 20;
+    let x: number | null = null;
+    if (chip.x - pad < view.x) x = Math.max(0, chip.x - pad);
+    else if (chip.x + chip.width + pad > view.x + view.width) {
+      x = chip.x + chip.width + pad - view.width;
+    }
+    if (x !== null) {
+      chipView.current.x = x;
+      chipScroll.current?.scrollTo({ x, animated });
+    }
+  }, []);
+  useEffect(() => revealChip(true), [dhikrId, revealChip]);
+
   // Idle "breathing" glow around the counter.
   useEffect(() => {
     const loop = Animated.loop(
@@ -235,16 +260,30 @@ export function TasbeehScreen() {
           subtitle={`Lifetime dhikr: ${total.toLocaleString()}`}
         >
           <ScrollView
+            ref={chipScroll}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.chips}
             style={styles.chipScroll}
+            onLayout={e => {
+              chipView.current.width = e.nativeEvent.layout.width;
+              revealChip(false);
+            }}
+            onScroll={e => {
+              chipView.current.x = e.nativeEvent.contentOffset.x;
+            }}
+            scrollEventThrottle={32}
           >
             {DHIKR.map(d => {
               const active = d.id === dhikrId;
               return (
                 <PressableScale
                   key={d.id}
+                  onLayout={e => {
+                    const { x, width } = e.nativeEvent.layout;
+                    chipAt.current[d.id] = { x, width };
+                    if (active) revealChip(false);
+                  }}
                   onPress={() => tasbeehConfig({ dhikrId: d.id })}
                   style={[
                     styles.chip,

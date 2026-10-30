@@ -462,14 +462,18 @@ export const SkyScene = memo(function SkySceneInner({
   phase,
   sun,
   band,
+  still = false,
 }: {
   phase: DayPhase;
   /** Sun position across the sky (0 sunrise → 1 Maghrib). */
   sun: number;
   /** Where the moon, sun and birds go, so they never sit behind text. */
   band: SkyBand | null;
+  /** Hold the scene still (e.g. while it is off-screen). */
+  still?: boolean;
 }) {
-  const reduce = useReduceMotion();
+  const reduceMotion = useReduceMotion();
+  const reduce = reduceMotion || still;
   const [size, setSize] = useState({ w: 0, h: 0 });
   const fade = useRef(new Animated.Value(0)).current;
   const sky = SKIES[phase];
@@ -520,7 +524,14 @@ export const SkyScene = memo(function SkySceneInner({
         ) : null}
         {sky.stars && h ? (
           <View style={[abs, { opacity: sky.stars }]}>
-            <StarField count={22} height={h * 0.7} />
+            {/* Stars stay in the open sky, above the text (on a tall scene
+                a dot over a word reads like a typo). */}
+            <StarField
+              count={22}
+              height={
+                band ? Math.min(h * 0.7, band.top + band.height) : h * 0.7
+              }
+            />
           </View>
         ) : null}
         {w && band ? (

@@ -17,7 +17,9 @@ const light = {
   goldSoft: '#FBE6D6',
   arabic: '#5A1F3A',
   danger: '#D14343',
-  tabBar: '#FFFFFF',
+  /** The floating tool bar at the bottom of the app. */
+  dock: '#2A1520',
+  dockBorder: 'rgba(255,255,255,0.08)',
   hero: 'linear-gradient(160deg, #3A1630 0%, #8E3457 58%, #D9714F 100%)',
   /** Solid colour matching the top edge of `hero` (status-bar strip). */
   heroTop: '#3A1630',
@@ -42,7 +44,8 @@ const dark: typeof light = {
   goldSoft: '#3A2418',
   arabic: '#FFD9B8',
   danger: '#F07171',
-  tabBar: '#1A0E16',
+  dock: '#2B1824',
+  dockBorder: '#3D2433',
   hero: 'linear-gradient(160deg, #12060F 0%, #3A1630 55%, #7A2C4A 100%)',
   heroTop: '#12060F',
   gold3: 'linear-gradient(135deg, #FFD9AE 0%, #F4A26B 55%, #E07B53 100%)',

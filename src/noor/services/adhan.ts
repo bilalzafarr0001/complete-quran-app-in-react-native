@@ -3,6 +3,7 @@ import notifee, {
   AndroidCategory,
   AndroidImportance,
   AndroidNotificationSetting,
+  AndroidStyle,
   AndroidVisibility,
   AuthorizationStatus,
   Event,
@@ -14,6 +15,7 @@ import notifee, {
 import { NativeModules, Platform } from 'react-native';
 import type { Place } from '../data/places';
 import { dateKey } from '../logic/dates';
+import { DUROOD_HOUR, isFriday, JUMUAH_LABEL } from '../logic/friday';
 import {
   addDays,
   calculatePrayerTimes,
@@ -37,9 +39,10 @@ export const CHANNELS = {
   fajr: 'noor-adhan-fajr-v1',
   beep: 'noor-prayer-v1',
   reminder: 'noor-reminder-v1',
+  friday: 'noor-friday-v1',
 } as const;
 
-const PREFIXES = ['adhan-', 'remind-', 'sunrise-', 'sehri-'];
+const PREFIXES = ['adhan-', 'remind-', 'sunrise-', 'sehri-', 'durood-'];
 /** Days of alerts kept scheduled ahead (refreshed every time the app opens). */
 export const SCHEDULE_DAYS = 7;
 /** iOS keeps at most 64 pending notifications per app. */
@@ -136,6 +139,13 @@ export async function ensureChannels() {
       sound: 'default',
       importance: AndroidImportance.DEFAULT,
     },
+    {
+      id: CHANNELS.friday,
+      name: 'Friday reminders',
+      description: "Jumu'ah Mubarak, and a reminder to send Durood",
+      sound: 'default',
+      importance: AndroidImportance.DEFAULT,
+    },
   ]);
 }
 
@@ -171,8 +181,11 @@ export const openNotificationSettings = () =>
 
 export type PlannedAlert = {
   id: string;
-  kind: 'adhan' | 'beep' | 'reminder' | 'sunrise' | 'sehri';
+  kind: 'adhan' | 'beep' | 'reminder' | 'sunrise' | 'sehri' | 'durood';
+  /** The Friday Durood reminder uses 'dhuhr' (the day of Jumu'ah). */
   prayer: SalahKey | 'sunrise';
+  /** Dhuhr on a Friday, announced as Jumu'ah. */
+  jumuah?: boolean;
   /** When to fire (UTC ms). */
   at: number;
   /** Local prayer time (hours) shown in the text. */
@@ -212,11 +225,13 @@ export function planAlerts(input: ScheduleInput): PlannedAlert[] {
     const offset = offsetOn(place, date);
     const times = calculatePrayerTimes(date, place, offset, method, madhab);
     const key = dateKey(date);
+    const friday = isFriday(date);
 
     for (const k of SALAH_KEYS as SalahKey[]) {
       const mode = settings.modes[k];
       if (mode === 'off') continue;
       const at = localToUtcMs(date, times[k], offset);
+      const jumuah = friday && k === 'dhuhr' ? { jumuah: true } : {};
       if (future(at)) {
         plan.push({
           id: `adhan-${key}-${k}`,
@@ -224,6 +239,7 @@ export function planAlerts(input: ScheduleInput): PlannedAlert[] {
           prayer: k,
           at,
           hours: times[k],
+          ...jumuah,
         });
       }
       if (settings.reminderMinutes > 0) {
@@ -235,6 +251,7 @@ export function planAlerts(input: ScheduleInput): PlannedAlert[] {
             prayer: k,
             at: r,
             hours: times[k],
+            ...jumuah,
           });
         }
       }
@@ -267,6 +284,24 @@ export function planAlerts(input: ScheduleInput): PlannedAlert[] {
       }
     }
   }
+  // Fridays: Jumu'ah Mubarak, and a reminder to send Durood. Looks one day
+  // further ahead, so next Friday's is queued even on a Friday afternoon.
+  if (settings.durood) {
+    for (let i = 0; i <= days; i++) {
+      const date = addDays(today, i);
+      if (!isFriday(date)) continue;
+      const at = localToUtcMs(date, DUROOD_HOUR, offsetOn(place, date));
+      if (future(at)) {
+        plan.push({
+          id: `durood-${dateKey(date)}`,
+          kind: 'durood',
+          prayer: 'dhuhr',
+          at,
+          hours: DUROOD_HOUR,
+        });
+      }
+    }
+  }
   plan.sort((a, b) => a.at - b.at);
   return Platform.OS === 'ios' ? plan.slice(0, IOS_LIMIT) : plan;
 }
@@ -275,8 +310,12 @@ function channelFor(a: PlannedAlert) {
   if (a.kind === 'adhan')
     return a.prayer === 'fajr' ? CHANNELS.fajr : CHANNELS.adhan;
   if (a.kind === 'reminder') return CHANNELS.reminder;
+  if (a.kind === 'durood') return CHANNELS.friday;
   return CHANNELS.beep;
 }
+
+const DUROOD_BODY =
+  "Send abundant Durood upon the Prophet ﷺ today, as he asked us to on Fridays. Allahumma salli 'ala Muhammad wa 'ala ali Muhammad.";
 
 export function buildNotification(
   a: PlannedAlert,
@@ -286,14 +325,17 @@ export function buildNotification(
   const time = formatTime(a.hours);
   let title: string;
   let body: string;
-  if (a.kind === 'sehri') {
+  if (a.kind === 'durood') {
+    title = "Jumu'ah Mubarak · جمعة مباركة";
+    body = DUROOD_BODY;
+  } else if (a.kind === 'sehri') {
     title = `Sehri ends in ${a.minutes} minutes`;
     body = `Fajr (end of Sehri) is at ${time} in ${place.name}.`;
   } else if (a.prayer === 'sunrise') {
     title = 'Sunrise · الشروق';
     body = `The sun rises at ${time} in ${place.name}. Fajr time has ended.`;
   } else {
-    const label = PRAYER_LABELS[a.prayer];
+    const label = a.jumuah ? JUMUAH_LABEL : PRAYER_LABELS[a.prayer];
     if (a.kind === 'reminder') {
       title = `${label.en} in ${reminderMinutes} minutes`;
       body = `${label.en} begins at ${time} in ${place.name}.`;
@@ -314,7 +356,7 @@ export function buildNotification(
       channelId: channelFor(a),
       category: isAlarm ? AndroidCategory.ALARM : AndroidCategory.REMINDER,
       importance:
-        a.kind === 'reminder'
+        a.kind === 'reminder' || a.kind === 'durood'
           ? AndroidImportance.DEFAULT
           : AndroidImportance.HIGH,
       color: '#A23E5C',
@@ -326,6 +368,11 @@ export function buildNotification(
       actions: isAdhan
         ? [{ title: 'Stop adhan', pressAction: { id: 'stop' } }]
         : undefined,
+      // The Durood reminder is longer than one line, so it can expand.
+      style:
+        a.kind === 'durood'
+          ? { type: AndroidStyle.BIGTEXT, text: body }
+          : undefined,
     },
     ios: { sound: 'default' },
   };

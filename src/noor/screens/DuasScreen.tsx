@@ -129,10 +129,27 @@ function DuaCard({
   );
 }
 
-export function DuasScreen() {
+export function DuasScreen({
+  category: initialCategory,
+  dua: initialDua,
+}: {
+  /** Open already filtered (e.g. "Sleep" from the Isha page on Today). */
+  category?: DuaCategory;
+  /** The dua to show expanded (defaults to the first one listed). */
+  dua?: string;
+} = {}) {
   const theme = useTheme();
-  const [category, setCategory] = useState<DuaCategory | 'All'>('All');
-  const [openId, setOpenId] = useState<string | null>(DUAS[0].id);
+  const [category, setCategory] = useState<DuaCategory | 'All'>(
+    initialCategory ?? 'All',
+  );
+  const [openId, setOpenId] = useState<string | null>(
+    () =>
+      initialDua ??
+      (initialCategory
+        ? DUAS.find(d => d.category === initialCategory)?.id
+        : DUAS[0].id) ??
+      null,
+  );
   const { header, headerHeight, onScroll } = useCollapsibleHeader();
 
   const list =

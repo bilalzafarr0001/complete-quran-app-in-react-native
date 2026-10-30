@@ -2,6 +2,7 @@ import { ReactNode, useRef } from 'react';
 import {
   AccessibilityRole,
   Animated,
+  LayoutChangeEvent,
   Pressable,
   StyleProp,
   ViewStyle,
@@ -17,6 +18,7 @@ type Props = {
   accessibilityRole?: AccessibilityRole;
   accessibilityLabel?: string;
   hitSlop?: number;
+  onLayout?: (e: LayoutChangeEvent) => void;
 };
 
 // A single animated view, so layout styles (width %, flex, margins) apply to
@@ -34,6 +36,7 @@ export function PressableScale({
   accessibilityRole = 'button',
   accessibilityLabel,
   hitSlop,
+  onLayout,
 }: Props) {
   const scale = useRef(new Animated.Value(1)).current;
   const springTo = (toValue: number) =>
@@ -50,6 +53,7 @@ export function PressableScale({
       onLongPress={onLongPress}
       disabled={disabled}
       hitSlop={hitSlop}
+      onLayout={onLayout}
       onPressIn={() => springTo(scaleTo)}
       onPressOut={() => springTo(1)}
       accessibilityRole={accessibilityRole}

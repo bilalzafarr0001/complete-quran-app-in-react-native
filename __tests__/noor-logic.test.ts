@@ -11,9 +11,11 @@ import {
   DEFAULT_PLACE,
   Place,
 } from '../src/noor/data/places';
+import { DHIKR } from '../src/noor/data/dhikr';
 import { NAMES_OF_ALLAH } from '../src/noor/data/names';
 import { QURAN_TEXT } from '../src/noor/data/quran';
 import { SURAHS } from '../src/noor/data/surahs';
+import { isFriday, prayerLabel } from '../src/noor/logic/friday';
 import { toHijri } from '../src/noor/logic/hijri';
 import {
   addDays,
@@ -26,6 +28,11 @@ import {
   PRAYER_KEYS,
 } from '../src/noor/logic/prayerTimes';
 import { qiblaBearing } from '../src/noor/logic/qibla';
+import {
+  openingPage,
+  PRAYER_PHASE,
+  prayerPages,
+} from '../src/noor/logic/skies';
 import { offsetOn, placeNow, zoneOffsetAt } from '../src/noor/logic/timezone';
 
 const place = (p: Partial<Place> & Pick<Place, 'lat' | 'lng'>): Place => ({
@@ -266,6 +273,147 @@ describe('prayer times', () => {
     expect(formatTime(0)).toBe('12:00 AM');
     expect(formatTime(13.5)).toBe('1:30 PM');
     expect(formatCountdown(1.5)).toBe('01:30:00');
+  });
+});
+
+describe('five skies (the pages on Today)', () => {
+  const date = { y: 2026, m: 10, d: 18 };
+  const t = calculatePrayerTimes(date, LAHORE, 5, 'karachi', 'hanafi');
+  const at = (hours: number) => {
+    const status = prayerStatus({ ...date, weekday: 0, hours }, t, t, t);
+    return prayerPages(date, hours, t, status);
+  };
+  const states = (hours: number) => at(hours).map(p => p.state);
+  const nobodyPrayed = () => false;
+
+  test('one page per salah, in order, each with its own sky', () => {
+    expect(at(12).map(p => p.key)).toEqual([
+      'fajr',
+      'dhuhr',
+      'asr',
+      'maghrib',
+      'isha',
+    ]);
+    // The page's sky is the one the app shows at that prayer's time.
+    for (const k of ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'] as const) {
+      expect(dayPhase(t[k] + 0.05, t)).toBe(PRAYER_PHASE[k]);
+    }
+  });
+
+  test('during Asr: earlier prayers are past, Asr is now, Maghrib next', () => {
+    expect(states(t.asr + 0.3)).toEqual([
+      'past',
+      'past',
+      'now',
+      'next',
+      'later',
+    ]);
+    const pages = at(t.asr + 0.3);
+    expect(pages[2].time).toBe(t.asr);
+    expect(pages.every(p => p.dayOffset === 0 && p.day === date)).toBe(true);
+    expect(openingPage(pages, nobodyPrayed)).toBe(2);
+  });
+
+  test('opens on the next prayer once the current one is marked prayed', () => {
+    const pages = at(t.asr + 0.3);
+    expect(openingPage(pages, p => p.key === 'asr')).toBe(3);
+  });
+
+  test('after sunrise no prayer is due, so it opens on Dhuhr', () => {
+    expect(states(t.sunrise + 1)).toEqual([
+      'past',
+      'next',
+      'later',
+      'later',
+      'later',
+    ]);
+    expect(openingPage(at(t.sunrise + 1), nobodyPrayed)).toBe(1);
+  });
+
+  test("after Isha the next Fajr is tomorrow's", () => {
+    const pages = at(t.isha + 1);
+    expect(pages.map(p => p.state)).toEqual([
+      'next',
+      'past',
+      'past',
+      'past',
+      'now',
+    ]);
+    expect(pages[0].dayOffset).toBe(1);
+    expect(pages[0].day).toEqual(addDays(date, 1));
+    expect(pages[0].time).toBeGreaterThan(24);
+    expect(openingPage(pages, nobodyPrayed)).toBe(4);
+  });
+
+  test("before Fajr it is still last night's Isha", () => {
+    const pages = at(1);
+    expect(pages.map(p => p.state)).toEqual([
+      'next',
+      'later',
+      'later',
+      'later',
+      'now',
+    ]);
+    expect(pages[4].dayOffset).toBe(-1);
+    expect(pages[4].day).toEqual(addDays(date, -1));
+    expect(pages[4].time).toBeLessThan(0);
+    // Today's Fajr is still today's.
+    expect(pages[0].dayOffset).toBe(0);
+  });
+
+  test('an Isha after midnight (high latitude) still belongs to today', () => {
+    const polar = { ...t, maghrib: 22.6, isha: 24.3 };
+    const status = prayerStatus(
+      { ...date, weekday: 0, hours: 23 },
+      polar,
+      polar,
+      polar,
+    );
+    const pages = prayerPages(date, 23, polar, status);
+    expect(pages[4].state).toBe('next');
+    expect(pages[4].dayOffset).toBe(0);
+    expect(pages[4].day).toBe(date);
+  });
+});
+
+describe("Fridays (Jumu'ah)", () => {
+  const thursday = { y: 2026, m: 10, d: 29 };
+  const friday = { y: 2026, m: 10, d: 30 };
+
+  test('Friday is found from the date alone', () => {
+    expect(isFriday(friday)).toBe(true);
+    expect(isFriday(thursday)).toBe(false);
+    expect(isFriday(addDays(friday, 7))).toBe(true);
+    expect(isFriday({ y: 2027, m: 1, d: 1 })).toBe(true);
+  });
+
+  test("Dhuhr is called Jumu'ah on Fridays only; other prayers keep their names", () => {
+    expect(prayerLabel('dhuhr', friday)).toEqual({
+      en: "Jumu'ah",
+      ar: 'الجمعة',
+    });
+    expect(prayerLabel('dhuhr', thursday)).toEqual({
+      en: 'Dhuhr',
+      ar: 'الظهر',
+    });
+    for (const k of PRAYER_KEYS.filter(p => p !== 'dhuhr')) {
+      expect(prayerLabel(k, friday)).toEqual(prayerLabel(k, thursday));
+    }
+  });
+
+  test('Durood is in the Friday duas and the tasbeeh counter', () => {
+    const fridayDuas = DUAS.filter(d => d.category === 'Friday');
+    expect(fridayDuas.map(d => d.id)).toEqual([
+      'durood-ibrahimi',
+      'durood-short',
+    ]);
+    // The same Durood Ibrahimi as recited in the Janazah prayer.
+    const janazah = DUAS.find(d => d.id === 'janazah-durood')!;
+    expect(fridayDuas[0].arabic).toBe(janazah.arabic);
+    expect(fridayDuas[0].reference).toContain('Abi Dawud 1047');
+    expect(DHIKR.find(d => d.id === 'durood')?.transliteration).toBe(
+      "Allahumma salli 'ala Muhammad",
+    );
   });
 });
 
