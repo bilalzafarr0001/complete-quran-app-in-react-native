@@ -4,6 +4,7 @@ import ReactTestRenderer, { ReactTestInstance } from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Shell } from '../src/noor/navigation/Shell';
+import * as assistant from '../src/noor/services/assistant';
 import * as verses from '../src/noor/services/verseOfMoment';
 import { StoreProvider, useStore } from '../src/noor/store';
 
@@ -196,18 +197,28 @@ describe('Today: five skies, one page per prayer', () => {
     expect(saved.prayed).toEqual({ '2026-10-28': ['isha'] });
   });
 
-  test('moves between prayers with the tabs and the page buttons', async () => {
+  test('moves between prayers with the tabs; the links below follow', async () => {
     await mount(DURING_ASR);
+    expect(textContent(root())).toContain('With Asr');
     await pressByLabel(root(), 'Isha');
     expect(selectedPrayer()).toEqual(['Isha']);
-    await pressByLabel(root(), 'Previous prayer: Maghrib');
+    expect(textContent(root())).toContain('With Isha');
+    await pressByLabel(root(), 'Maghrib');
     expect(selectedPrayer()).toEqual(['Maghrib']);
-    await pressByLabel(root(), 'Next prayer: Isha');
-    expect(selectedPrayer()).toEqual(['Isha']);
     await pressByLabel(root(), 'Fajr');
     expect(selectedPrayer()).toEqual(['Fajr']);
-    // There is nothing before Fajr or after Isha.
-    expect(has('Previous prayer: Isha')).toBe(false);
+    const text = textContent(root());
+    expect(text).toContain('With Fajr');
+    expect(text).not.toContain('With Asr');
+  });
+
+  test('the prayer card has only its essentials (the links sit below it)', async () => {
+    await mount(DURING_ASR);
+    // No page buttons inside the card any more; the tabs do that.
+    expect(has('Previous prayer: Dhuhr')).toBe(false);
+    expect(has('Next prayer: Maghrib')).toBe(false);
+    // Only the prayer on screen lists its links.
+    expect(textContent(root()).split('Tasbeeh after salah').length - 1).toBe(1);
   });
 
   test('a prayer page turns on alerts and switches adhan / sound / off', async () => {
@@ -230,12 +241,18 @@ describe('Today: five skies, one page per prayer', () => {
 
   test('each page links what belongs to that time of day', async () => {
     await mount(makkah('21:00'));
-    const text = textContent(root());
-    expect(text).toContain('WITH FAJR');
-    expect(text).toContain('Morning dua');
-    expect(text).toContain('Evening dua');
+    let text = textContent(root());
+    expect(text).toContain('With Isha');
     expect(text).toContain('Surah Al-Mulk');
-    expect(text).not.toContain('Dua at Iftar'); // only in Ramadan
+    await pressByLabel(root(), 'Fajr');
+    expect(textContent(root())).toContain('Morning dua');
+    await pressByLabel(root(), 'Asr');
+    expect(textContent(root())).toContain('Evening dua');
+    await pressByLabel(root(), 'Maghrib');
+    expect(textContent(root())).not.toContain('Dua at Iftar'); // only in Ramadan
+    await pressByLabel(root(), 'Isha');
+    text = textContent(root());
+    expect(text).toContain('Duas before sleep');
 
     await pressByLabel(
       root(),
@@ -255,15 +272,15 @@ describe('Today: five skies, one page per prayer', () => {
     expect(textContent(root())).toContain('The Sovereignty · Meccan · 30 ayat');
     await pressByLabel(root(), 'Go back');
 
-    // Tasbeeh after salah is on every prayer's page.
-    expect(textContent(root()).split('Tasbeeh after salah').length - 1).toBe(5);
+    // Tasbeeh after salah belongs to every prayer.
+    expect(textContent(root())).toContain('Tasbeeh after salah');
     await pressByLabel(
       root(),
       'Tasbeeh after salah. SubhanAllah · Alhamdulillah · Allahu Akbar',
     );
     expect(selectedDock()).toEqual(['Tasbeeh']);
     after = textContent(root());
-    expect(after).not.toContain('WITH ISHA');
+    expect(after).not.toContain('With Isha');
   });
 
   test('the full timetable opens from Today, and its Qibla button goes to the Qibla tab', async () => {
@@ -341,11 +358,9 @@ describe("Fridays: Jumu'ah instead of Dhuhr", () => {
     expect(text).toContain("Jumu'ah Mubarak · ");
     expect(text).toContain('30 October 2026');
     expect(text).not.toContain('Friday, 30 October');
-    expect(text).toContain("WITH JUMU'AH");
+    expect(text).toContain("With Jumu'ah");
     expect(text).not.toContain('Dhuhr');
     expect(has("Jumu'ah alert: Off. Tap to change")).toBe(true);
-    expect(has("Next prayer: Jumu'ah")).toBe(true);
-    expect(has("Previous prayer: Jumu'ah")).toBe(true);
   });
 
   test("the Jumu'ah page links Durood and Surah Al-Kahf", async () => {
@@ -438,7 +453,7 @@ describe("Fridays: Jumu'ah instead of Dhuhr", () => {
     expect(text).toContain(
       "Jumu'ah Mubarak at 10:00 AM, with a reminder to send Durood",
     );
-    expect(text).toContain("الظهر · Jumu'ah on Fridays");
+    expect(text).toContain("Jumu'ah on Fridays");
     const toggle = () =>
       root().findAll(
         n =>
@@ -452,6 +467,182 @@ describe("Fridays: Jumu'ah instead of Dhuhr", () => {
     await settle(1000);
     expect(toggle().props.value).toBe(false);
     expect((await savedState()).notifications.durood).toBe(false);
+  });
+});
+
+describe('the sky follows the live weather', () => {
+  const fetchMock = globalThis.fetch as jest.Mock;
+  afterEach(() => {
+    fetchMock.mockImplementation(() =>
+      Promise.reject(new Error('offline (test)')),
+    );
+  });
+
+  /** The weather each prayer page's sky is painted with, by phase. */
+  const skies = () => {
+    const out: Record<string, unknown> = {};
+    for (const n of root().findAll(
+      x => typeof x.props.phase === 'string' && 'weather' in x.props,
+    )) {
+      out[n.props.phase] = n.props.weather;
+    }
+    return out;
+  };
+
+  test('each prayer gets the forecast for its time; no temperature is shown', async () => {
+    // Makkah, Wednesday 28 October (hourly, local time).
+    const time: string[] = [];
+    const code: number[] = [];
+    for (let h = 0; h < 24; h++) {
+      time.push(`2026-10-28T${h < 10 ? '0' : ''}${h}:00`);
+      // Fajr ~5:01 clear, Dhuhr ~12:05 partly cloudy, now (16:30 → 17:00)
+      // rain, Maghrib ~5:47 PM (18:00) overcast, Isha ~7:17 PM storm.
+      code.push(
+        h === 12 ? 2 : h === 17 ? 63 : h === 18 ? 3 : h === 19 ? 95 : 0,
+      );
+    }
+    fetchMock.mockImplementation(async (url: string) =>
+      url.includes('api.open-meteo.com/v1/forecast')
+        ? {
+            ok: true,
+            json: async () => ({ hourly: { time, weather_code: code } }),
+          }
+        : Promise.reject(new Error('offline (test)')),
+    );
+    await mount(DURING_ASR);
+    await settle(500);
+    await settle(500);
+    expect(skies()).toEqual({
+      dawn: 'clear',
+      day: 'partly',
+      afternoon: 'rain',
+      dusk: 'cloudy',
+      night: 'storm',
+    });
+    const text = textContent(root());
+    expect(text).not.toMatch(/°|Rain|Cloudy|Thunderstorm/);
+    expect(
+      fetchMock.mock.calls.some(([u]) => String(u).includes('weather_code')),
+    ).toBe(true);
+  });
+
+  test('offline (no forecast yet), the sky looks as usual', async () => {
+    await mount(DURING_ASR);
+    expect(Object.values(skies())).toEqual([null, null, null, null, null]);
+  });
+});
+
+describe('chat support (AI)', () => {
+  const STORE = 'noor:chat:v1';
+  const openChat = async () => {
+    await mount(DURING_ASR, { onboarded: true });
+    await pressByLabel(root(), 'Settings');
+    await pressByLabel(root(), 'Chat support');
+  };
+  const reply = (text: string) =>
+    jest.spyOn(assistant, 'streamChat').mockImplementation(({ onText }) => {
+      onText(text.slice(0, 5));
+      return { done: Promise.resolve(text), cancel: jest.fn() };
+    });
+  afterEach(() => jest.restoreAllMocks());
+
+  test('Settings has a Chat support button that opens the assistant', async () => {
+    await openChat();
+    const text = textContent(root());
+    expect(text).toContain('Falaq Assistant');
+    expect(text).toContain('Assalamu alaikum');
+    expect(text).toContain('TRY ASKING');
+    expect(text).toContain('AI answers can be wrong');
+    expect(has('Send')).toBe(true);
+  });
+
+  test('a question gets a formatted answer, with the user’s context', async () => {
+    const spy = reply('**Ghusl** before Jumu’ah\n- Wear clean clothes');
+    await openChat();
+    await pressByLabel(root(), 'Ask: What are the Sunnahs of Friday?');
+    await settle();
+    const [{ system, messages }] = spy.mock.calls[0];
+    expect(messages).toEqual([
+      { role: 'user', content: 'What are the Sunnahs of Friday?' },
+    ]);
+    expect(system).toContain('Location: Makkah, Saudi Arabia');
+    expect(system).toContain('Wednesday, 28 October 2026');
+    // DURING_ASR is 4:30 PM in Makkah.
+    expect(system).toMatch(
+      /Local time there now: 4:30 PM\. Prayer time now: Asr \(until Maghrib at 5:\d\d PM\)/,
+    );
+    const text = textContent(root());
+    expect(text).toContain('What are the Sunnahs of Friday?');
+    expect(text).toContain('Ghusl'); // bold, without the ** markers
+    expect(text).not.toContain('**');
+    expect(text).toContain('Wear clean clothes');
+    expect(text).not.toContain('TRY ASKING');
+    await settle(1000);
+    const saved = JSON.parse((await AsyncStorage.getItem(STORE))!);
+    expect(saved).toHaveLength(2);
+    expect(saved[1].role).toBe('assistant');
+  });
+
+  test('typed questions are sent too; off-topic ones get "I don\'t know."', async () => {
+    const spy = reply("I don't know.");
+    await openChat();
+    const input = root().findAll(
+      n => n.props.accessibilityLabel === 'Message' && n.props.onChangeText,
+    )[0];
+    await ReactTestRenderer.act(async () => {
+      input.props.onChangeText('Who won the 2022 World Cup?');
+    });
+    await pressByLabel(root(), 'Send');
+    await settle();
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(textContent(root())).toContain("I don't know.");
+  });
+
+  test('errors can be retried without repeating the question', async () => {
+    const spy = jest
+      .spyOn(assistant, 'streamChat')
+      .mockImplementationOnce(() => ({
+        done: Promise.reject(
+          new assistant.ChatError(
+            "Couldn't reach Falaq Assistant. Check your internet connection and try again.",
+            0,
+          ),
+        ),
+        cancel: jest.fn(),
+      }))
+      .mockImplementationOnce(({ onText }) => {
+        onText('Wa alaikum');
+        return {
+          done: Promise.resolve('Wa alaikum assalam!'),
+          cancel: jest.fn(),
+        };
+      });
+    await openChat();
+    await pressByLabel(root(), 'Ask: What breaks the fast?');
+    await settle();
+    expect(textContent(root())).toContain('Check your internet connection');
+    await pressByLabel(root(), 'Try again');
+    await settle();
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(spy.mock.calls[1][0].messages).toEqual([
+      { role: 'user', content: 'What breaks the fast?' },
+    ]);
+    const text = textContent(root());
+    expect(text).toContain('Wa alaikum assalam!');
+    expect(text).not.toContain('Check your internet connection');
+    expect(text.split('What breaks the fast?').length - 1).toBe(1);
+  });
+
+  test('New chat clears the conversation', async () => {
+    reply('Salam');
+    await openChat();
+    await pressByLabel(root(), 'Ask: How do I pray Witr?');
+    await settle();
+    expect(textContent(root())).toContain('Salam');
+    await pressByLabel(root(), 'New chat');
+    const text = textContent(root());
+    expect(text).not.toContain('Salam');
+    expect(text).toContain('TRY ASKING');
   });
 });
 
@@ -488,7 +679,7 @@ describe('the floating dock and the other screens', () => {
       ['Prayer Times', 'Salah tracker'],
       ['99 Names', 'Ar-Rahman'],
       ['Duas', 'Daily Duas'],
-      ['Settings', 'PRAYER TIMES'],
+      ['Settings', 'PRAYER CALCULATION'],
     ]) {
       const card = root().findAll(
         n =>

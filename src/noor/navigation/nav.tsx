@@ -9,7 +9,8 @@ export type Route =
   | { name: 'names' }
   | { name: 'duas'; category?: DuaCategory; dua?: string }
   | { name: 'ramadan' }
-  | { name: 'settings' };
+  | { name: 'settings' }
+  | { name: 'assistant' };
 
 export type Nav = {
   tab: TabName;

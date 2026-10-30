@@ -8,12 +8,14 @@ import {
   View,
 } from 'react-native';
 import { BottomSheet } from '../components/BottomSheet';
+import { SpinningStar } from '../components/Decor';
 import { FadeIn } from '../components/FadeIn';
 import { LocationPicker } from '../components/LocationPicker';
 import { PressableScale } from '../components/PressableScale';
 import { ReciterList } from '../components/ReciterList';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Segmented } from '../components/Segmented';
+import { defaultsForCountry } from '../data/places';
 import { getReciter } from '../data/reciters';
 import { useAdhanControls } from '../hooks/useAdhanControls';
 import { usePlace, usePrayerData } from '../hooks/usePrayerData';
@@ -46,16 +48,48 @@ import {
 } from '../store';
 import { useTheme } from '../theme';
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+/** A small rounded tile holding an icon (rows and section headers). */
+function IconTile({ icon, small }: { icon: string; small?: boolean }) {
+  const theme = useTheme();
+  return (
+    <View
+      style={[
+        small ? styles.tileSmall : styles.tile,
+        { backgroundColor: theme.primarySoft },
+      ]}
+    >
+      <Text
+        maxFontSizeMultiplier={1.2}
+        style={small ? styles.tileIconSmall : styles.tileIcon}
+      >
+        {icon}
+      </Text>
+    </View>
+  );
+}
+
+function Section({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: string;
+  children: ReactNode;
+}) {
   const theme = useTheme();
   return (
     <View style={styles.section}>
-      <Text
-        maxFontSizeMultiplier={1.3}
-        style={[styles.sectionTitle, { color: theme.muted }]}
-      >
-        {title}
-      </Text>
+      <View style={styles.sectionHead}>
+        <IconTile icon={icon} small />
+        <Text
+          maxFontSizeMultiplier={1.3}
+          style={[styles.sectionTitle, { color: theme.muted }]}
+          accessibilityRole="header"
+        >
+          {title}
+        </Text>
+      </View>
       <View
         style={[
           styles.group,
@@ -69,11 +103,13 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function Row({
+  icon,
   label,
   value,
   onPress,
   last,
 }: {
+  icon: string;
   label: string;
   value: string;
   onPress: () => void;
@@ -93,6 +129,7 @@ function Row({
         },
       ]}
     >
+      <IconTile icon={icon} />
       <View style={styles.flex}>
         <Text style={[styles.rowLabel, { color: theme.text }]}>{label}</Text>
         {value ? (
@@ -106,6 +143,88 @@ function Row({
       </View>
       <Text style={[styles.chevron, { color: theme.muted }]}>›</Text>
     </PressableScale>
+  );
+}
+
+/** A setting whose control sits under its label (segmented choices). */
+function ControlRow({
+  icon,
+  label,
+  hint,
+  first,
+  children,
+}: {
+  icon: string;
+  label: string;
+  hint?: string;
+  first?: boolean;
+  children: ReactNode;
+}) {
+  const theme = useTheme();
+  return (
+    <View
+      style={[
+        styles.control,
+        !first && {
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderColor: theme.border,
+        },
+      ]}
+    >
+      <View style={styles.controlHead}>
+        <IconTile icon={icon} />
+        <View style={styles.flex}>
+          <Text style={[styles.rowLabel, { color: theme.text }]}>{label}</Text>
+          {hint ? (
+            <Text style={[styles.rowHint, { color: theme.muted }]}>{hint}</Text>
+          ) : null}
+        </View>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+/** A setting with an on/off switch. */
+function SwitchRow({
+  icon,
+  label,
+  hint,
+  value,
+  onChange,
+  first,
+}: {
+  icon: string;
+  label: string;
+  hint: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+  first?: boolean;
+}) {
+  const theme = useTheme();
+  return (
+    <View
+      style={[
+        styles.row,
+        !first && {
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderColor: theme.border,
+        },
+      ]}
+    >
+      <IconTile icon={icon} />
+      <View style={styles.flex}>
+        <Text style={[styles.rowLabel, { color: theme.text }]}>{label}</Text>
+        <Text style={[styles.rowHint, { color: theme.muted }]}>{hint}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ true: theme.primary, false: theme.border }}
+        thumbColor="#FFFFFF"
+        accessibilityLabel={label}
+      />
+    </View>
   );
 }
 
@@ -192,8 +311,6 @@ function Option({
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 
 const SALAH: SalahKey[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
-/** Starts in Arabic, so a left-to-right mark keeps the line in order. */
-const DHUHR_HINT = `\u200E${PRAYER_LABELS.dhuhr.ar} · Jumu'ah on Fridays`;
 
 function Notice({
   icon,
@@ -235,6 +352,14 @@ function Notice({
 }
 
 /** Adhan alerts: master switch, per-prayer sound, reminders, tests. */
+const PRAYER_ICON: Record<SalahKey, string> = {
+  fajr: '🌅',
+  dhuhr: '☀️',
+  asr: '🌤️',
+  maghrib: '🌇',
+  isha: '🌙',
+};
+
 function AdhanSettings() {
   const theme = useTheme();
   const { place } = usePlace();
@@ -256,8 +381,9 @@ function AdhanSettings() {
 
   return (
     <View>
-      <Section title="ADHAN & NOTIFICATIONS">
+      <Section title="ADHAN & REMINDERS" icon="🔔">
         <View style={styles.row}>
+          <IconTile icon="🔔" />
           <View style={styles.flex}>
             <Text style={[styles.rowLabel, { color: theme.text }]}>
               Prayer notifications
@@ -296,15 +422,22 @@ function AdhanSettings() {
                   },
                 ]}
               >
+                <IconTile icon={PRAYER_ICON[k]} small />
                 <View style={styles.flex}>
-                  <Text style={[styles.rowLabel, { color: theme.text }]}>
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.rowLabel, { color: theme.text }]}
+                  >
                     {PRAYER_LABELS[k].en}
                   </Text>
-                  <Text style={[styles.rowHint, { color: theme.muted }]}>
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.rowHint, { color: theme.muted }]}
+                  >
                     {k === 'fajr' && c.settings.modes[k] === 'adhan'
                       ? 'Fajr adhan'
                       : k === 'dhuhr'
-                      ? DHUHR_HINT
+                      ? "Jumu'ah on Fridays"
                       : PRAYER_LABELS[k].ar}
                   </Text>
                 </View>
@@ -323,60 +456,24 @@ function AdhanSettings() {
             ))
           : null}
         {on ? (
-          <View
-            style={[
-              styles.row,
-              {
-                borderTopWidth: StyleSheet.hairlineWidth,
-                borderColor: theme.border,
-              },
-            ]}
-          >
-            <View style={styles.flex}>
-              <Text style={[styles.rowLabel, { color: theme.text }]}>
-                Sunrise alert
-              </Text>
-              <Text style={[styles.rowHint, { color: theme.muted }]}>
-                Know when Fajr time ends
-              </Text>
-            </View>
-            <Switch
-              value={c.settings.sunrise}
-              onValueChange={v => c.updateNotifications({ sunrise: v })}
-              trackColor={{ true: theme.primary, false: theme.border }}
-              thumbColor="#FFFFFF"
-              accessibilityLabel="Sunrise alert"
-            />
-          </View>
+          <SwitchRow
+            icon="🌄"
+            label="Sunrise alert"
+            hint="Know when Fajr time ends"
+            value={c.settings.sunrise}
+            onChange={v => c.updateNotifications({ sunrise: v })}
+          />
         ) : null}
         {on ? (
-          <View
-            style={[
-              styles.row,
-              {
-                borderTopWidth: StyleSheet.hairlineWidth,
-                borderColor: theme.border,
-              },
-            ]}
-          >
-            <View style={styles.flex}>
-              <Text style={[styles.rowLabel, { color: theme.text }]}>
-                Friday Durood reminder
-              </Text>
-              <Text style={[styles.rowHint, { color: theme.muted }]}>
-                {`Jumu'ah Mubarak at ${formatTime(
-                  DUROOD_HOUR,
-                )}, with a reminder to send Durood`}
-              </Text>
-            </View>
-            <Switch
-              value={c.settings.durood}
-              onValueChange={v => c.updateNotifications({ durood: v })}
-              trackColor={{ true: theme.primary, false: theme.border }}
-              thumbColor="#FFFFFF"
-              accessibilityLabel="Friday Durood reminder"
-            />
-          </View>
+          <SwitchRow
+            icon="🤲"
+            label="Friday Durood reminder"
+            hint={`Jumu'ah Mubarak at ${formatTime(
+              DUROOD_HOUR,
+            )}, with a reminder to send Durood`}
+            value={c.settings.durood}
+            onChange={v => c.updateNotifications({ durood: v })}
+          />
         ) : null}
       </Section>
 
@@ -404,67 +501,54 @@ function AdhanSettings() {
       ) : null}
 
       {on ? (
-        <View style={styles.inline}>
-          <Text
-            maxFontSizeMultiplier={1.3}
-            style={[styles.inlineLabel, { color: theme.muted }]}
+        <Section title="ALERT OPTIONS" icon="⏰">
+          <ControlRow
+            first
+            icon="📢"
+            label="Adhan at prayer time"
+            hint={
+              c.settings.adhanLength === 'short'
+                ? 'The opening “Allahu Akbar, Allahu Akbar” (about 20 seconds)'
+                : 'The complete adhan (about 3 minutes)'
+            }
           >
-            ADHAN AT PRAYER TIME
-          </Text>
-          <Segmented<NotifySettings['adhanLength']>
-            value={c.settings.adhanLength}
-            onChange={v => c.updateNotifications({ adhanLength: v })}
-            options={[
-              { value: 'short', label: 'Allahu Akbar' },
-              { value: 'full', label: 'Full adhan' },
-            ]}
-          />
-          <Text
-            maxFontSizeMultiplier={1.3}
-            style={[styles.inlineHint, { color: theme.muted }]}
+            <Segmented<NotifySettings['adhanLength']>
+              value={c.settings.adhanLength}
+              onChange={v => c.updateNotifications({ adhanLength: v })}
+              options={[
+                { value: 'short', label: 'Allahu Akbar' },
+                { value: 'full', label: 'Full adhan' },
+              ]}
+            />
+          </ControlRow>
+          <ControlRow
+            icon="⏳"
+            label="Remind me before each prayer"
+            hint="A heads-up so you can prepare"
           >
-            {c.settings.adhanLength === 'short'
-              ? 'Plays the opening “Allahu Akbar, Allahu Akbar” (about 20 seconds).'
-              : 'Plays the complete adhan (about 3 minutes).'}
-          </Text>
-        </View>
-      ) : null}
-
-      {on ? (
-        <View style={styles.inline}>
-          <Text
-            maxFontSizeMultiplier={1.3}
-            style={[styles.inlineLabel, { color: theme.muted }]}
+            <Segmented<NotifySettings['reminderMinutes']>
+              value={c.settings.reminderMinutes}
+              onChange={v => c.updateNotifications({ reminderMinutes: v })}
+              options={[
+                { value: 0, label: 'Off' },
+                { value: 10, label: '10 min' },
+                { value: 15, label: '15 min' },
+                { value: 30, label: '30 min' },
+              ]}
+            />
+          </ControlRow>
+          <ControlRow
+            icon="🌙"
+            label="Sehri reminder"
+            hint="During Ramadan, before Fajr (end of Sehri)"
           >
-            REMIND ME BEFORE EACH PRAYER
-          </Text>
-          <Segmented<NotifySettings['reminderMinutes']>
-            value={c.settings.reminderMinutes}
-            onChange={v => c.updateNotifications({ reminderMinutes: v })}
-            options={[
-              { value: 0, label: 'Off' },
-              { value: 10, label: '10 min' },
-              { value: 15, label: '15 min' },
-              { value: 30, label: '30 min' },
-            ]}
-          />
-        </View>
-      ) : null}
-
-      {on ? (
-        <View style={styles.inline}>
-          <Text
-            maxFontSizeMultiplier={1.3}
-            style={[styles.inlineLabel, { color: theme.muted }]}
-          >
-            SEHRI REMINDER (RAMADAN)
-          </Text>
-          <Segmented<NotifySettings['sehriMinutes']>
-            value={c.settings.sehriMinutes}
-            onChange={v => c.updateNotifications({ sehriMinutes: v })}
-            options={SEHRI_OPTIONS}
-          />
-        </View>
+            <Segmented<NotifySettings['sehriMinutes']>
+              value={c.settings.sehriMinutes}
+              onChange={v => c.updateNotifications({ sehriMinutes: v })}
+              options={SEHRI_OPTIONS}
+            />
+          </ControlRow>
+        </Section>
       ) : null}
 
       <View style={styles.testRow}>
@@ -519,6 +603,12 @@ export function SettingsScreen() {
   }, []);
 
   const synced = state.hijriSyncedOn === dateKey(date);
+  // The method used in the user's country (picked for them automatically).
+  const recommended =
+    !isDefaultPlace && place.countryCode
+      ? defaultsForCountry(place.countryCode).method
+      : null;
+  const country = place.country || place.name;
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.bg }]}>
@@ -530,22 +620,49 @@ export function SettingsScreen() {
           subtitle={state.name ? `Assalamu alaikum, ${state.name}` : undefined}
         />
 
+        <FadeIn delay={30} style={contentColumn}>
+          <PressableScale
+            onPress={() => nav.push({ name: 'assistant' })}
+            scaleTo={0.98}
+            style={[
+              styles.chatCard,
+              { backgroundImage: theme.hero, boxShadow: theme.floatShadow },
+            ]}
+            accessibilityLabel="Chat support"
+          >
+            <SpinningStar
+              size={130}
+              color="rgba(255,197,138,0.18)"
+              style={styles.chatStar}
+              duration={40000}
+            />
+            <View style={styles.chatIcon}>
+              <Text style={styles.chatEmoji}>💬</Text>
+            </View>
+            <View style={styles.flex}>
+              <View style={styles.chatTitleRow}>
+                <Text style={styles.chatTitle}>Chat support</Text>
+                <View style={styles.aiBadge}>
+                  <Text style={styles.aiBadgeText}>AI</Text>
+                </View>
+              </View>
+              <Text style={styles.chatSub}>
+                Ask about the app or any Islamic question
+              </Text>
+            </View>
+            <Text style={styles.chatArrow}>›</Text>
+          </PressableScale>
+        </FadeIn>
+
         <FadeIn delay={60} style={contentColumn}>
-          <Section title="LOCATION">
+          <Section title="LOCATION" icon="📍">
             <PressableScale
               onPress={() => setSheet('location')}
               scaleTo={0.98}
               style={styles.placeRow}
               accessibilityLabel="Change location"
             >
-              <View
-                style={[
-                  styles.placeIcon,
-                  { backgroundColor: theme.primarySoft },
-                ]}
-              >
-                <Text style={styles.placeEmoji}>📍</Text>
-              </View>
+              <IconTile icon="📍" />
               <View style={styles.flex}>
                 <Text
                   numberOfLines={1}
@@ -572,41 +689,50 @@ export function SettingsScreen() {
             </PressableScale>
           </Section>
 
-          <Section title="PRAYER TIMES">
+          <Section title="PRAYER CALCULATION" icon="🕌">
             <Row
+              icon="🧮"
               label="Calculation method"
-              value={METHODS[state.method].name}
+              value={`${METHODS[state.method].name}${
+                recommended === state.method
+                  ? ` · Recommended for ${country}`
+                  : ''
+              }`}
               onPress={() => setSheet('method')}
-              last
             />
-          </Section>
-          <View style={styles.inline}>
-            <Text
-              maxFontSizeMultiplier={1.3}
-              style={[styles.inlineLabel, { color: theme.muted }]}
+            <ControlRow
+              icon="🌤️"
+              label="Asr time"
+              hint={
+                state.madhab === 'hanafi'
+                  ? 'Hanafi: Asr begins when a shadow is twice its length'
+                  : "Standard (Shafi'i, Maliki, Hanbali): shadow equal to its length"
+              }
             >
-              ASR JURISTIC METHOD
-            </Text>
-            <Segmented
-              value={state.madhab}
-              onChange={v => update({ madhab: v })}
-              options={[
-                { value: 'standard', label: 'Standard' },
-                { value: 'hanafi', label: 'Hanafi' },
-              ]}
-            />
-          </View>
+              <Segmented
+                value={state.madhab}
+                onChange={v => update({ madhab: v })}
+                options={[
+                  { value: 'standard', label: 'Standard' },
+                  { value: 'hanafi', label: 'Hanafi' },
+                ]}
+              />
+            </ControlRow>
+          </Section>
 
-          <Section title="HIJRI DATE">
-            <View style={styles.stack}>
-              <Text style={[styles.rowLabel, { color: theme.text }]}>
-                {formatHijri(hijri)}
-              </Text>
-              <Text style={[styles.rowHint, { color: theme.muted }]}>
-                {synced
-                  ? 'Synced with the official calendar'
-                  : 'Calculated on device (offline)'}
-              </Text>
+          <Section title="ISLAMIC DATE" icon="🌙">
+            <View style={styles.row}>
+              <IconTile icon="📅" />
+              <View style={styles.flex}>
+                <Text style={[styles.rowLabel, { color: theme.text }]}>
+                  {formatHijri(hijri)}
+                </Text>
+                <Text style={[styles.rowHint, { color: theme.muted }]}>
+                  {synced
+                    ? 'Synced with the official calendar'
+                    : 'Calculated on device (offline)'}
+                </Text>
+              </View>
             </View>
             <View
               style={[
@@ -618,7 +744,10 @@ export function SettingsScreen() {
                 },
               ]}
             >
-              <Text style={[styles.rowLabel, { color: theme.text }]}>
+              <IconTile icon="🔭" />
+              <Text
+                style={[styles.rowLabel, styles.flex, { color: theme.text }]}
+              >
                 Adjust for local moon sighting
               </Text>
               <Stepper
@@ -635,79 +764,62 @@ export function SettingsScreen() {
 
         <FadeIn delay={90} style={contentColumn}>
           <AdhanSettings />
-          <Section title="QURAN RECITATION">
+          <Section title="QURAN AUDIO" icon="🎧">
             <Row
+              icon="🎙️"
               label="Reciter"
               value={getReciter(state.reciterId).name}
               onPress={() => setSheet('reciter')}
             />
-            <View style={styles.row}>
-              <View style={styles.flex}>
-                <Text style={[styles.rowLabel, { color: theme.text }]}>
-                  Follow along
-                </Text>
-                <Text style={[styles.rowHint, { color: theme.muted }]}>
-                  Scroll to and highlight the ayah being recited
-                </Text>
-              </View>
-              <Switch
-                value={state.followAlong}
-                onValueChange={v => update({ followAlong: v })}
-                trackColor={{ true: theme.primary, false: theme.border }}
-                thumbColor="#FFFFFF"
-                accessibilityLabel="Follow along"
-              />
-            </View>
+            <SwitchRow
+              first
+              icon="📖"
+              label="Follow along"
+              hint="Scroll to and highlight the ayah being recited"
+              value={state.followAlong}
+              onChange={v => update({ followAlong: v })}
+            />
           </Section>
         </FadeIn>
 
         <FadeIn delay={120} style={contentColumn}>
-          <View style={styles.inline}>
-            <Text
-              maxFontSizeMultiplier={1.3}
-              style={[styles.inlineLabel, { color: theme.muted }]}
-            >
-              APPEARANCE
-            </Text>
-            <Segmented<ThemeMode>
-              value={state.themeMode}
-              onChange={v => update({ themeMode: v })}
-              options={[
-                { value: 'system', label: 'System' },
-                { value: 'light', label: 'Light' },
-                { value: 'dark', label: 'Dark' },
-              ]}
-            />
-          </View>
-          <View style={styles.inline}>
-            <Text
-              maxFontSizeMultiplier={1.3}
-              style={[styles.inlineLabel, { color: theme.muted }]}
-            >
-              QURAN TRANSLATION
-            </Text>
-            <Segmented<Translation>
-              value={state.translation}
-              onChange={v => update({ translation: v })}
-              options={[
-                { value: 'en', label: 'English' },
-                { value: 'ur', label: 'Urdu' },
-                { value: 'both', label: 'Both' },
-                { value: 'off', label: 'Off' },
-              ]}
-            />
-          </View>
-          <Section title="READING">
+          <Section title="DISPLAY & READING" icon="🎨">
+            <ControlRow first icon="🌗" label="Theme">
+              <Segmented<ThemeMode>
+                value={state.themeMode}
+                onChange={v => update({ themeMode: v })}
+                options={[
+                  { value: 'system', label: 'System' },
+                  { value: 'light', label: 'Light' },
+                  { value: 'dark', label: 'Dark' },
+                ]}
+              />
+            </ControlRow>
+            <ControlRow icon="🌐" label="Quran translation">
+              <Segmented<Translation>
+                value={state.translation}
+                onChange={v => update({ translation: v })}
+                options={[
+                  { value: 'en', label: 'English' },
+                  { value: 'ur', label: 'Urdu' },
+                  { value: 'both', label: 'Both' },
+                  { value: 'off', label: 'Off' },
+                ]}
+              />
+            </ControlRow>
             <View
               style={[
                 styles.row,
                 {
-                  borderBottomWidth: StyleSheet.hairlineWidth,
+                  borderTopWidth: StyleSheet.hairlineWidth,
                   borderColor: theme.border,
                 },
               ]}
             >
-              <Text style={[styles.rowLabel, { color: theme.text }]}>
+              <IconTile icon="🔤" />
+              <Text
+                style={[styles.rowLabel, styles.flex, { color: theme.text }]}
+              >
                 Arabic text size
               </Text>
               <Stepper
@@ -719,7 +831,16 @@ export function SettingsScreen() {
                 step={2}
               />
             </View>
-            <View style={styles.row}>
+            <View
+              style={[
+                styles.row,
+                {
+                  borderTopWidth: StyleSheet.hairlineWidth,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <IconTile icon="💾" />
               <View style={styles.flex}>
                 <Text style={[styles.rowLabel, { color: theme.text }]}>
                   Saved for offline
@@ -746,10 +867,11 @@ export function SettingsScreen() {
         </FadeIn>
 
         <FadeIn delay={180} style={contentColumn}>
-          <Section title="APP">
+          <Section title="ABOUT" icon="ℹ️">
             <Row
+              icon="🔁"
               label="Replay onboarding"
-              value=""
+              value="See the welcome screens again"
               last
               onPress={() => {
                 nav.pop();
@@ -759,8 +881,8 @@ export function SettingsScreen() {
           </Section>
           <Text style={[styles.footnote, { color: theme.muted }]}>
             Prayer times are calculated on your device from your location, so
-            they work offline. City names, time zones, Hijri dates and Quran
-            text are fetched online and saved for offline use.
+            they work offline. City names, time zones, weather, Hijri dates and
+            Quran text are fetched online and saved for offline use.
           </Text>
         </FadeIn>
       </ScrollView>
@@ -790,12 +912,17 @@ export function SettingsScreen() {
         title="Calculation method"
         onClose={() => setSheet(null)}
       >
+        <Text style={[styles.sheetNote, { color: theme.muted }]}>
+          {recommended
+            ? `Falaq uses the method followed in ${country} automatically. Change it only if your local mosque follows a different one.`
+            : 'Methods differ in the sun angles used for Fajr and Isha. Choose the one your local mosque follows.'}
+        </Text>
         {(Object.keys(METHODS) as MethodId[]).map(id => {
           const m = METHODS[id];
           return (
             <Option
               key={id}
-              label={m.name}
+              label={id === recommended ? `${m.name} (Recommended)` : m.name}
               sub={`Fajr ${m.fajr}° · Isha ${
                 m.ishaMinutes
                   ? `${m.ishaMinutes} min after Maghrib`
@@ -818,13 +945,66 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { paddingBottom: 40 },
   section: { marginTop: 22, marginHorizontal: 16 },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1,
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 8,
     marginLeft: 4,
   },
+  sectionTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 1 },
+  tile: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileIcon: { fontSize: 17 },
+  tileSmall: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileIconSmall: { fontSize: 12 },
+  control: { paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  controlHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  chatCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginHorizontal: 16,
+    marginTop: 18,
+    borderRadius: 24,
+    padding: 16,
+    overflow: 'hidden',
+  },
+  chatStar: { right: -30, top: -40 },
+  chatIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  chatEmoji: { fontSize: 24 },
+  chatTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  chatTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '900' },
+  aiBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    backgroundColor: '#FFC58A',
+  },
+  aiBadgeText: { color: '#5A1F3A', fontSize: 11, fontWeight: '900' },
+  chatSub: { color: 'rgba(255,255,255,0.82)', fontSize: 13, marginTop: 3 },
+  chatArrow: { color: '#FFC58A', fontSize: 28, fontWeight: '700' },
+  sheetNote: { fontSize: 13, lineHeight: 19, marginBottom: 12 },
   group: { borderRadius: 20, overflow: 'hidden' },
   row: {
     flexDirection: 'row',
@@ -835,7 +1015,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   rowLabel: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
-  stack: { paddingHorizontal: 16, paddingTop: 15, paddingBottom: 12 },
   rowTight: { paddingVertical: 10 },
   rowHint: { fontSize: 12.5, marginTop: 3, lineHeight: 17 },
   chevron: { fontSize: 22, fontWeight: '600' },
@@ -845,26 +1024,9 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 12,
   },
-  placeIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  placeEmoji: { fontSize: 22 },
   placeName: { fontSize: 16, fontWeight: '800' },
   placeSub: { fontSize: 12.5, marginTop: 2, lineHeight: 17 },
   change: { fontSize: 14, fontWeight: '800' },
-  inline: { marginTop: 22, marginHorizontal: 16 },
-  inlineLabel: {
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1,
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  inlineHint: { fontSize: 12.5, marginTop: 8, marginLeft: 4 },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   stepBtn: {
     width: 36,
@@ -893,7 +1055,7 @@ const styles = StyleSheet.create({
   optionLabel: { fontSize: 15, fontWeight: '700' },
   optionSub: { fontSize: 12.5, marginTop: 2 },
   optionCheck: { fontSize: 18, fontWeight: '900' },
-  modePicker: { width: 216 },
+  modePicker: { width: 196 },
   notice: {
     flexDirection: 'row',
     gap: 12,

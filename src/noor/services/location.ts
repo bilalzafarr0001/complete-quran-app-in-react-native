@@ -58,7 +58,9 @@ function getPosition(highAccuracy: boolean, timeout: number): Promise<Coords> {
       {
         enableHighAccuracy: highAccuracy,
         timeout,
-        maximumAge: 10 * 60 * 1000,
+        // A recent fix is fine, but not an old one: after travelling, a
+        // 10-minute-old position could name the previous city.
+        maximumAge: 60 * 1000,
       },
     ),
   );

@@ -16,6 +16,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { AssistantScreen } from '../screens/AssistantScreen';
 import { DuasScreen } from '../screens/DuasScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { MoreScreen } from '../screens/MoreScreen';
@@ -65,6 +66,8 @@ function renderRoute(route: Route) {
       return <RamadanScreen />;
     case 'settings':
       return <SettingsScreen />;
+    case 'assistant':
+      return <AssistantScreen />;
   }
 }
 

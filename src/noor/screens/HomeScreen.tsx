@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -30,6 +30,7 @@ import {
   useAdhanControls,
 } from '../hooks/useAdhanControls';
 import { usePrayerData } from '../hooks/usePrayerData';
+import { useWeather } from '../hooks/useWeather';
 import { contentColumn, useResponsive } from '../hooks/useResponsive';
 import { dateKey, dayIndex, formatGregorian } from '../logic/dates';
 import { isFriday, prayerLabel } from '../logic/friday';
@@ -48,6 +49,7 @@ import {
   prayerPages,
   Salah,
 } from '../logic/skies';
+import { forecastAt, SkyWeather } from '../logic/weather';
 import { Route, useNav } from '../navigation/nav';
 import { openNotificationSettings } from '../services/adhan';
 import { useStore } from '../store';
@@ -194,6 +196,9 @@ function GlideBar({ progress, fill }: { progress: number; fill: string }) {
   );
 }
 
+/** How much of the content below the prayer card shows on first view. */
+const PEEK = 20;
+
 type AlertInfo = {
   icon: string;
   text: string;
@@ -201,7 +206,11 @@ type AlertInfo = {
   onPress: () => void;
 };
 
-/** One prayer's page: its sky, its time, and what belongs to it. */
+/**
+ * One prayer's page: its sky (following the live weather), its time and its
+ * actions. It fills the visible screen; the open sky stretches or shrinks so
+ * the whole card always fits above the tab bar.
+ */
 function PrayerSky({
   page,
   width,
@@ -218,13 +227,8 @@ function PrayerSky({
   prayed,
   alert,
   alertError,
-  ramadan,
-  prev,
-  next,
+  weather,
   onTogglePrayed,
-  onOpen,
-  onPrev,
-  onNext,
   onElapsed,
 }: {
   page: PrayerPage;
@@ -243,18 +247,15 @@ function PrayerSky({
   prayed: boolean;
   alert: AlertInfo;
   alertError: string | null;
-  ramadan: boolean;
-  prev?: string;
-  next?: string;
+  /** The sky the forecast calls for at this prayer's time (null = unknown). */
+  weather: SkyWeather | null;
   onTogglePrayed: () => void;
-  onOpen: (c: Companion) => void;
-  onPrev: () => void;
-  onNext: () => void;
   onElapsed: () => void;
 }) {
   const theme = useTheme();
   const { fs, compactHeight } = useResponsive();
   const [band, setBand] = useState<SkyBand | null>(null);
+  const [titleBox, setTitleBox] = useState<SkyBand | null>(null);
   const { key, state } = page;
   const label = prayerLabel(key, page.day);
   const en = label.en;
@@ -281,6 +282,18 @@ function PrayerSky({
           page.dayOffset === 1 ? ' tomorrow' : ''
         }`;
 
+  // The name block in the page's coordinates (the body starts below the band).
+  const title = useMemo(
+    () =>
+      band && titleBox
+        ? {
+            top: band.top + band.height + titleBox.top,
+            height: titleBox.height,
+          }
+        : null,
+    [band, titleBox],
+  );
+
   return (
     <View
       style={[
@@ -292,10 +305,13 @@ function PrayerSky({
         phase={PRAYER_PHASE[key]}
         sun={sunProgress(state === 'now' ? hours : page.time, today)}
         band={band}
+        title={title}
+        weather={weather}
         still={!active}
       />
 
-      {/* Open sky where the sun, moon and birds go (no text over it). */}
+      {/* Open sky where the moon and birds go (no text over it). It takes
+          whatever height is left, so the card fits any screen. */}
       <View
         style={compactHeight ? styles.skyCompact : styles.sky}
         onLayout={e => {
@@ -307,33 +323,44 @@ function PrayerSky({
       />
 
       <View style={[contentColumn, styles.pageBody]}>
-        <View style={styles.labelRow}>
-          {state === 'now' ? (
-            <LiveDot color={onHero.gold} animate={active} />
-          ) : null}
+        <View
+          onLayout={e => {
+            const { y, height: hgt } = e.nativeEvent.layout;
+            setTitleBox(b =>
+              b && b.top === y && b.height === hgt
+                ? b
+                : { top: y, height: hgt },
+            );
+          }}
+        >
+          <View style={styles.labelRow}>
+            {state === 'now' ? (
+              <LiveDot color={onHero.gold} animate={active} />
+            ) : null}
+            <Text
+              maxFontSizeMultiplier={1.3}
+              numberOfLines={1}
+              style={[styles.pageLabel, state === 'now' && styles.goldText]}
+            >
+              {pageLabel(page, placeName)}
+            </Text>
+          </View>
           <Text
             maxFontSizeMultiplier={1.3}
-            numberOfLines={1}
-            style={[styles.pageLabel, state === 'now' && styles.goldText]}
+            style={[styles.pageArabic, { fontSize: fs(26) }]}
           >
-            {pageLabel(page, placeName)}
+            {label.ar}
+          </Text>
+          <Text
+            accessibilityRole="header"
+            maxFontSizeMultiplier={1.2}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={[styles.pageName, { fontSize: fs(compactHeight ? 50 : 62) }]}
+          >
+            {en}
           </Text>
         </View>
-        <Text
-          maxFontSizeMultiplier={1.3}
-          style={[styles.pageArabic, { fontSize: fs(26) }]}
-        >
-          {label.ar}
-        </Text>
-        <Text
-          accessibilityRole="header"
-          maxFontSizeMultiplier={1.2}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          style={[styles.pageName, { fontSize: fs(compactHeight ? 50 : 62) }]}
-        >
-          {en}
-        </Text>
 
         {state === 'next' ? (
           <View style={styles.countRow}>
@@ -419,76 +446,6 @@ function PrayerSky({
             {alertError}
           </Text>
         ) : null}
-
-        <Text maxFontSizeMultiplier={1.2} style={styles.withLabel}>
-          WITH {en.toUpperCase()}
-        </Text>
-        {companionsFor(key, ramadan, isFriday(page.day)).map(c => (
-          <PressableScale
-            key={c.id}
-            style={styles.withRow}
-            onPress={() => onOpen(c)}
-            scaleTo={0.98}
-            accessibilityLabel={`${c.title}. ${c.sub}`}
-          >
-            <View style={styles.withIcon}>
-              <Text maxFontSizeMultiplier={1.2} style={styles.withEmoji}>
-                {c.icon}
-              </Text>
-            </View>
-            <View style={styles.flex}>
-              <Text
-                maxFontSizeMultiplier={1.3}
-                numberOfLines={1}
-                style={styles.withTitle}
-              >
-                {c.title}
-              </Text>
-              <Text
-                maxFontSizeMultiplier={1.3}
-                numberOfLines={1}
-                style={styles.withSub}
-              >
-                {c.sub}
-              </Text>
-            </View>
-            <Text style={styles.withArrow}>›</Text>
-          </PressableScale>
-        ))}
-      </View>
-
-      {/* Swipe hint, and buttons for anyone who doesn't swipe. */}
-      <View style={[contentColumn, styles.pageNav]}>
-        {prev ? (
-          <Pressable
-            style={styles.pageNavBtn}
-            onPress={onPrev}
-            accessibilityRole="button"
-            accessibilityLabel={`Previous prayer: ${prev}`}
-            hitSlop={6}
-          >
-            <Text maxFontSizeMultiplier={1.3} style={styles.pageNavText}>
-              {`‹  ${prev}`}
-            </Text>
-          </Pressable>
-        ) : (
-          <View />
-        )}
-        {next ? (
-          <Pressable
-            style={styles.pageNavBtn}
-            onPress={onNext}
-            accessibilityRole="button"
-            accessibilityLabel={`Next prayer: ${next}`}
-            hitSlop={6}
-          >
-            <Text maxFontSizeMultiplier={1.3} style={styles.pageNavText}>
-              {`${next}  ›`}
-            </Text>
-          </Pressable>
-        ) : (
-          <View />
-        )}
       </View>
     </View>
   );
@@ -522,6 +479,14 @@ export function HomeScreen() {
   } = usePrayerData();
 
   const pages = prayerPages(date, now.hours, today, status);
+  const forecast = useWeather(place);
+  /** The sky at a page's prayer time (right now, for the current one). */
+  const weatherOf = (p: PrayerPage): SkyWeather | null =>
+    forecast
+      ? p.state === 'now'
+        ? forecastAt(forecast, date, now.hours)
+        : forecastAt(forecast, p.day, p.time)
+      : null;
   const isPrayed = useCallback(
     (p: PrayerPage) => (state.prayed[dateKey(p.day)] ?? []).includes(p.key),
     [state.prayed],
@@ -536,6 +501,8 @@ export function HomeScreen() {
   const prayedToday = (state.prayed[todayKey] ?? []).length;
 
   const [pagerW, setPagerW] = useState(windowWidth);
+  /** Visible height of Today (between the top of the screen and the tab bar). */
+  const [viewH, setViewH] = useState(0);
   const [headerH, setHeaderH] = useState(insets.top + 110);
   const [tabsW, setTabsW] = useState(0);
   const [page, setPage] = useState(anchor);
@@ -643,13 +610,23 @@ export function HomeScreen() {
   const name = NAMES_OF_ALLAH[idx % NAMES_OF_ALLAH.length];
   const lastRead = state.lastRead;
   const cell = tabsW / pages.length;
-  const pageMinHeight = Math.max(480, Math.round(height * 0.72));
+  // The prayer card fills the visible screen, leaving a sliver of what's
+  // below so it's clear the page scrolls.
+  const pageMinHeight = viewH
+    ? Math.max(420, viewH - PEEK)
+    : Math.max(480, Math.round(height * 0.72));
+  const shown = pages[page] ?? pages[anchor];
+  const shownName = nameOf(shown);
 
   return (
     <ScrollView
       style={{ backgroundColor: theme.bg }}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+      onLayout={e => {
+        const h = Math.round(e.nativeEvent.layout.height);
+        if (h && h !== viewH) setViewH(h);
+      }}
     >
       {/* ---------- Five skies ---------- */}
       <View
@@ -695,13 +672,8 @@ export function HomeScreen() {
               prayed={isPrayed(p)}
               alert={alertFor(p)}
               alertError={adhan.error}
-              ramadan={ramadan}
-              prev={i > 0 ? nameOf(pages[i - 1]) : undefined}
-              next={i < pages.length - 1 ? nameOf(pages[i + 1]) : undefined}
+              weather={weatherOf(p)}
               onTogglePrayed={() => togglePrayed(dateKey(p.day), p.key)}
-              onOpen={openCompanion}
-              onPrev={() => goTo(i - 1)}
-              onNext={() => goTo(i + 1)}
               onElapsed={refresh}
             />
           ))}
@@ -811,6 +783,55 @@ export function HomeScreen() {
 
       {/* ---------- The rest of the day ---------- */}
       <View style={contentColumn}>
+        {/* What belongs to the prayer on screen (follows the swipes). */}
+        <FadeIn key={shown.key} distance={8}>
+          <Text
+            maxFontSizeMultiplier={1.3}
+            style={[styles.withHeading, { color: theme.text }]}
+          >
+            With {shownName}
+          </Text>
+          {companionsFor(shown.key, ramadan, isFriday(shown.day)).map(c => (
+            <PressableScale
+              key={c.id}
+              style={[
+                styles.withRow,
+                { backgroundColor: theme.surface, boxShadow: theme.cardShadow },
+              ]}
+              onPress={() => openCompanion(c)}
+              scaleTo={0.98}
+              accessibilityLabel={`${c.title}. ${c.sub}`}
+            >
+              <View
+                style={[styles.withIcon, { backgroundColor: theme.goldSoft }]}
+              >
+                <Text maxFontSizeMultiplier={1.2} style={styles.withEmoji}>
+                  {c.icon}
+                </Text>
+              </View>
+              <View style={styles.flex}>
+                <Text
+                  maxFontSizeMultiplier={1.3}
+                  numberOfLines={1}
+                  style={[styles.withTitle, { color: theme.text }]}
+                >
+                  {c.title}
+                </Text>
+                <Text
+                  maxFontSizeMultiplier={1.3}
+                  numberOfLines={1}
+                  style={[styles.withSub, { color: theme.muted }]}
+                >
+                  {c.sub}
+                </Text>
+              </View>
+              <Text style={[styles.withArrow, { color: theme.primary }]}>
+                ›
+              </Text>
+            </PressableScale>
+          ))}
+        </FadeIn>
+
         {isDefaultPlace ? (
           <FadeIn delay={120}>
             <PressableScale
@@ -1059,9 +1080,10 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 34,
     overflow: 'hidden',
   },
-  page: { overflow: 'hidden', paddingBottom: 14 },
-  sky: { height: 56 },
-  skyCompact: { height: 26 },
+  page: { overflow: 'hidden', paddingBottom: 26 },
+  // The open sky takes the height that's left (at least this much).
+  sky: { flexGrow: 1, minHeight: 56 },
+  skyCompact: { flexGrow: 1, minHeight: 26 },
   pageBody: { paddingHorizontal: 20 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   pageLabel: {
@@ -1149,57 +1171,35 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 10,
   },
-  withLabel: {
-    color: onHero.gold,
-    fontSize: 11,
+  withHeading: {
+    fontSize: 19,
     fontWeight: '800',
-    letterSpacing: 1.4,
+    marginHorizontal: 20,
     marginTop: 22,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   withRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    minHeight: 60,
+    minHeight: 64,
     borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginHorizontal: 20,
+    marginBottom: 10,
   },
   withIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.14)',
   },
-  withEmoji: { fontSize: 19 },
-  withTitle: { color: onHero.text, fontSize: 15, fontWeight: '800' },
-  withSub: {
-    color: onHero.soft,
-    fontSize: 12.5,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  withArrow: { color: onHero.soft, fontSize: 22, fontWeight: '700' },
-  pageNav: {
-    marginTop: 'auto',
-    paddingTop: 10,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  pageNavBtn: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-  },
-  pageNavText: { color: onHero.soft, fontSize: 13.5, fontWeight: '700' },
+  withEmoji: { fontSize: 20 },
+  withTitle: { fontSize: 15.5, fontWeight: '800' },
+  withSub: { fontSize: 12.5, marginTop: 2 },
+  withArrow: { fontSize: 24, fontWeight: '700' },
 
   // Header over the pages
   overlay: {
