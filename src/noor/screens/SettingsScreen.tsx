@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { BottomSheet } from '../components/BottomSheet';
-import { SpinningStar } from '../components/Decor';
+import { ChatSupportCard } from '../components/ChatSupportCard';
 import { FadeIn } from '../components/FadeIn';
 import { LocationPicker } from '../components/LocationPicker';
 import { PressableScale } from '../components/PressableScale';
@@ -621,37 +621,7 @@ export function SettingsScreen() {
         />
 
         <FadeIn delay={30} style={contentColumn}>
-          <PressableScale
-            onPress={() => nav.push({ name: 'assistant' })}
-            scaleTo={0.98}
-            style={[
-              styles.chatCard,
-              { backgroundImage: theme.hero, boxShadow: theme.floatShadow },
-            ]}
-            accessibilityLabel="Chat support"
-          >
-            <SpinningStar
-              size={130}
-              color="rgba(255,197,138,0.18)"
-              style={styles.chatStar}
-              duration={40000}
-            />
-            <View style={styles.chatIcon}>
-              <Text style={styles.chatEmoji}>💬</Text>
-            </View>
-            <View style={styles.flex}>
-              <View style={styles.chatTitleRow}>
-                <Text style={styles.chatTitle}>Chat support</Text>
-                <View style={styles.aiBadge}>
-                  <Text style={styles.aiBadgeText}>AI</Text>
-                </View>
-              </View>
-              <Text style={styles.chatSub}>
-                Ask about the app or any Islamic question
-              </Text>
-            </View>
-            <Text style={styles.chatArrow}>›</Text>
-          </PressableScale>
+          <ChatSupportCard />
         </FadeIn>
 
         <FadeIn delay={60} style={contentColumn}>
@@ -971,39 +941,6 @@ const styles = StyleSheet.create({
   tileIconSmall: { fontSize: 12 },
   control: { paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
   controlHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  chatCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    marginHorizontal: 16,
-    marginTop: 18,
-    borderRadius: 24,
-    padding: 16,
-    overflow: 'hidden',
-  },
-  chatStar: { right: -30, top: -40 },
-  chatIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
-  },
-  chatEmoji: { fontSize: 24 },
-  chatTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  chatTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '900' },
-  aiBadge: {
-    borderRadius: 8,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    backgroundColor: '#FFC58A',
-  },
-  aiBadgeText: { color: '#5A1F3A', fontSize: 11, fontWeight: '900' },
-  chatSub: { color: 'rgba(255,255,255,0.82)', fontSize: 13, marginTop: 3 },
-  chatArrow: { color: '#FFC58A', fontSize: 28, fontWeight: '700' },
   sheetNote: { fontSize: 13, lineHeight: 19, marginBottom: 12 },
   group: { borderRadius: 20, overflow: 'hidden' },
   row: {

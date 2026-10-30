@@ -3,8 +3,26 @@
 export type ChatRole = 'user' | 'assistant';
 export type ChatMessage = { role: ChatRole; content: string };
 
-/** What the off-topic reply is (also used to style it in the chat). */
-export const OUT_OF_SCOPE_REPLY = "I don't know.";
+/** The reply to anything that isn't about the app or Islam. */
+export const OUT_OF_SCOPE_REPLY =
+  "I don't know. I can't assist you with these types of questions. Please ask me any Islamic-related question.";
+
+const words = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[’']/g, '')
+    .replace(/[^a-z]+/g, ' ')
+    .trim();
+
+/**
+ * True when the model gave the off-topic reply (in full, or just "I don't
+ * know."), so the chat can always show the complete message. A real answer
+ * that merely starts with "I don't know…" is left alone.
+ */
+export function isOutOfScope(reply: string): boolean {
+  const w = words(reply);
+  return w === 'i dont know' || w.startsWith(words(OUT_OF_SCOPE_REPLY));
+}
 
 /** Live details so answers like "when is Maghrib today?" are right. */
 export type AssistantContext = {

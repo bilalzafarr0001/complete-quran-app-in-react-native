@@ -2,6 +2,7 @@ import {
   buildSystemPrompt,
   deltaText,
   errorMessage,
+  isOutOfScope,
   OUT_OF_SCOPE_REPLY,
   readSse,
   recentHistory,
@@ -104,10 +105,29 @@ describe('chat support: what the assistant is told', () => {
   });
 
   test('only the app and Islam; anything else gets "I don\'t know."', () => {
-    expect(OUT_OF_SCOPE_REPLY).toBe("I don't know.");
+    expect(OUT_OF_SCOPE_REPLY).toBe(
+      "I don't know. I can't assist you with these types of questions. Please ask me any Islamic-related question.",
+    );
     expect(prompt).toContain(`reply with exactly: ${OUT_OF_SCOPE_REPLY}`);
     expect(prompt).toContain('How to use the Falaq app');
     expect(prompt).toContain('Islamic knowledge');
+  });
+
+  test('recognises the off-topic reply, short or in full, but not real answers', () => {
+    expect(isOutOfScope(OUT_OF_SCOPE_REPLY)).toBe(true);
+    expect(isOutOfScope("I don't know.")).toBe(true);
+    expect(isOutOfScope('I dont know')).toBe(true);
+    expect(
+      isOutOfScope(
+        'I don’t know. I can’t assist you with these types of questions. Please ask me any Islamic-related question.',
+      ),
+    ).toBe(true);
+    expect(
+      isOutOfScope(
+        "I don't know the exact wording, but the hadith is in Sahih Muslim.",
+      ),
+    ).toBe(false);
+    expect(isOutOfScope('Ghusl is a Sunnah of Friday.')).toBe(false);
   });
 
   test('guards against made-up sources and respects the schools of thought', () => {

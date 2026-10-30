@@ -22,6 +22,7 @@ import { contentColumn } from '../hooks/useResponsive';
 import {
   buildSystemPrompt,
   ChatMessage,
+  isOutOfScope,
   OUT_OF_SCOPE_REPLY,
   recentHistory,
 } from '../logic/assistant';
@@ -189,7 +190,8 @@ export function AssistantScreen() {
       h.done
         .then(reply => {
           if (current() && reply) {
-            setMessages(m => [...m, { role: 'assistant', content: reply }]);
+            const content = isOutOfScope(reply) ? OUT_OF_SCOPE_REPLY : reply;
+            setMessages(m => [...m, { role: 'assistant', content }]);
           }
         })
         .catch((e: unknown) => {
@@ -349,7 +351,7 @@ export function AssistantScreen() {
                   },
                 ]}
               >
-                {m.content.trim() === OUT_OF_SCOPE_REPLY ? (
+                {m.content === OUT_OF_SCOPE_REPLY ? (
                   <Text style={[styles.outOfScope, { color: theme.text }]}>
                     {OUT_OF_SCOPE_REPLY}
                   </Text>

@@ -595,7 +595,10 @@ describe('chat support (AI)', () => {
     await pressByLabel(root(), 'Send');
     await settle();
     expect(spy).toHaveBeenCalledTimes(1);
-    expect(textContent(root())).toContain("I don't know.");
+    // Even a bare "I don't know." shows the full, friendly message.
+    expect(textContent(root())).toContain(
+      "I don't know. I can't assist you with these types of questions. Please ask me any Islamic-related question.",
+    );
   });
 
   test('errors can be retried without repeating the question', async () => {
@@ -680,6 +683,7 @@ describe('the floating dock and the other screens', () => {
       ['99 Names', 'Ar-Rahman'],
       ['Duas', 'Daily Duas'],
       ['Settings', 'PRAYER CALCULATION'],
+      ['Chat support', 'Falaq Assistant'],
     ]) {
       const card = root().findAll(
         n =>
